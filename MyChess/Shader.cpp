@@ -2,10 +2,15 @@
 
 Shader::Shader()
 {
+    shaderProgramId = 0;
 }
 
 Shader::~Shader()
 {
+    if (shaderProgramId != 0)
+    {
+        glDeleteProgram(shaderProgramId);
+    }
 }
 
 void Shader::UseShader()
@@ -29,7 +34,7 @@ std::string Shader::ReadFile(const char* fileLocation)
     while (!filestream.eof())
     {
         std::getline(filestream, line);
-        content.append(line);
+        content.append(line + "\n");
     }
     
     filestream.close();
@@ -39,7 +44,8 @@ std::string Shader::ReadFile(const char* fileLocation)
 void Shader::AddShader(GLuint shaderProgram, const char* sourceLocation, GLenum shaderType)
 {
     GLuint shaderId = glCreateShader(shaderType);
-    const char* shaderCode = ReadFile(sourceLocation).c_str();
+    std::string shaderString = ReadFile(sourceLocation);
+    const char* shaderCode = shaderString.c_str();
     glShaderSource(shaderId, 1, &shaderCode, NULL);
     glCompileShader(shaderId);
 
