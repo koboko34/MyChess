@@ -16,14 +16,14 @@ public:
 	void CompileShaders(const char* vertexLocation, const char* fragmentLocation);
 	void UseShader();
 
+	GLuint GetShaderId() const { return shaderProgramId; }
+
 private:
 	std::string ReadFile(const char* fileLocation);
 
 	void AddShader(GLuint shaderProgram, const char* sourceLocation, GLenum shaderType);
 
-
 	GLuint vertId, fragId;
 	GLuint shaderProgramId;
-
 };
 
