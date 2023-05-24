@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <GL/glew.h>
 
 #include <GLFW/glfw3.h>
@@ -25,6 +27,12 @@ public:
 
 private:
 
+	void SetupBoard(glm::mat4 view, glm::mat4 projection);
+	void SetupPieces(glm::mat4 view, glm::mat4 projection);
+
+	void RenderTiles();
+	void RenderPieces();
+
 	Shader boardShader, pieceShader;
 	
 	GLfloat tileVertices[12] = {
@@ -47,10 +55,14 @@ private:
 
 	Piece* pieces[64];
 
-	glm::vec3 blackColor = glm::vec3(0.1f, 0.1f, 0.1f);
-	glm::vec3 whiteColor = glm::vec3(0.9f, 0.9f, 0.9f);
+	glm::vec3 blackTileColor = glm::vec3(0.4f, 0.6f, 0.4f);
+	glm::vec3 whiteTileColor = glm::vec3(1.f, 1.f, 0.8f);
+
+	float tileSize = 0.13f;
 
 	float aspect;
+
+	void SetupBoardFromFEN(std::string fen);
 	
 };
 

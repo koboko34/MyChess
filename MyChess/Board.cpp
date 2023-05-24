@@ -7,18 +7,63 @@ Board::Board()
 
 Board::~Board()
 {
+	for (Piece* piece : pieces)
+	{
+		delete piece;
+		piece = nullptr;
+	}
+
+	if (VAO != 0)
+	{
+		glDeleteVertexArrays(1, &VAO);
+	}
+	if (EBO != 0)
+	{
+		glDeleteBuffers(1, &EBO);
+	}
+	if (VBO != 0)
+	{
+		glDeleteBuffers(1, &VBO);
+	}
+
+	if (piecesTextureId != 0)
+	{
+		glDeleteTextures(1, &piecesTextureId);
+	}
 }
 
 void Board::Init(unsigned int width, unsigned int height)
 {
-	// setup board
+	glm::mat4 view = glm::mat4(1.f);
+	view = glm::translate(view, glm::vec3(0.f, 0.f, -1.f));
+
+	aspect = (float)width / (float)height;
+	glm::mat4 projection = glm::ortho(0.f, aspect, 0.f, 1.f, 0.f, 1000.f);
+
+	SetupBoard(view, projection);
+	SetupPieces(view, projection);
+
+	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+}
+
+void Board::DrawBoard()
+{
+	boardShader.UseShader();
+	RenderTiles();
+	
+	pieceShader.UseShader();
+	RenderPieces();
+}
+
+void Board::SetupBoard(glm::mat4 view, glm::mat4 projection)
+{
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tileIndices), tileIndices, GL_STATIC_DRAW);
-	
+
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(tileVertices), tileVertices, GL_STATIC_DRAW);
@@ -38,17 +83,12 @@ void Board::Init(unsigned int width, unsigned int height)
 	tileViewLocation = glGetUniformLocation(boardShader.GetShaderId(), "view");
 	tileProjectionLocation = glGetUniformLocation(boardShader.GetShaderId(), "projection");
 
-	glm::mat4 view = glm::mat4(1.f);
-	view = glm::translate(view, glm::vec3(0.f, 0.f, -1.f));
-
-	aspect = (float)width / (float)height;
-	glm::mat4 projection = glm::ortho(0.f, aspect, 0.f, 1.f, 0.f, 1000.f);
-
 	glUniformMatrix4fv(tileViewLocation, 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(tileProjectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
+}
 
-
-	// setup piece textures
+void Board::SetupPieces(glm::mat4 view, glm::mat4 projection)
+{
 	glGenTextures(1, &piecesTextureId);
 	glBindTexture(GL_TEXTURE_2D, piecesTextureId);
 
@@ -72,7 +112,6 @@ void Board::Init(unsigned int width, unsigned int height)
 	}
 	stbi_image_free(data);
 
-
 	pieceShader.CompileShaders("shaders/pieceShader.vert", "shaders/pieceShader.frag");
 	pieceShader.UseShader();
 
@@ -83,60 +122,121 @@ void Board::Init(unsigned int width, unsigned int height)
 	glUniformMatrix4fv(pieceViewLocation, 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(pieceProjectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
-	// setup pieces using FEN string
 	for (int i = 0; i < 64; i++)
 	{
-		pieces[i] = new Piece(WHITE, KNIGHT);
+		pieces[i] = nullptr;
 	}
 }
 
-void Board::DrawBoard()
+void Board::RenderTiles()
 {
-	float size = 0.13f;
+	glBindVertexArray(VAO);
 
-	for (size_t rank = 1; rank <= 8; rank++)
+	for (size_t rank = 8; rank >= 1; rank--)
 	{
 		for (size_t file = 1; file <= 8; file++)
 		{
-			boardShader.UseShader();
-			glBindVertexArray(VAO);
-			
 			if ((rank % 2 == 0) != (file % 2 == 0))
 			{
-				glUniform3f(tileColorLocation, whiteColor.x, whiteColor.y, whiteColor.z);
+				glUniform3f(tileColorLocation, whiteTileColor.x, whiteTileColor.y, whiteTileColor.z);
 			}
 			else
 			{
-				glUniform3f(tileColorLocation, blackColor.x, blackColor.y, blackColor.z);
+				glUniform3f(tileColorLocation, blackTileColor.x, blackTileColor.y, blackTileColor.z);
 			}
-			
+
+			int objectId = (8 - rank) * 8 + file - 1;
+
 			glm::mat4 tileModel = glm::mat4(1.f);
-			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * rank + 0.305f, (file * 2 - 1) / 16.f, 1.f));
-			tileModel = glm::scale(tileModel, glm::vec3(size, size, 1.f));
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 1.f));
+			tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
 			glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-			glBindVertexArray(0);
-			
-			// draw pieces
-			pieceShader.UseShader();
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, piecesTextureId);
-			int i = (rank - 1) * 8 + file - 1;
-
-			glm::mat4 pieceModel = glm::mat4(1.f);
-			pieceModel = glm::translate(pieceModel, glm::vec3((aspect / 13.7f) * rank + 0.305f, (file * 2 - 1) / 16.f, 0.f));
-			pieceModel = glm::scale(pieceModel, glm::vec3(size, size, 1.f));
-			glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
-
-			if (pieces[i] == nullptr)
-			{
-				printf("pieces[i] is null!");
-				continue;
-			}
-			pieces[i]->DrawPiece();
 		}
 	}
-	
+
 	glBindVertexArray(0);
+}
+
+void Board::RenderPieces()
+{	
+	for (size_t rank = 8; rank >= 1; rank--)
+	{
+		for (size_t file = 1; file <= 8; file++)
+		{
+			int objectId = (8 - rank) * 8 + file - 1;
+
+			if (pieces[objectId] == nullptr)
+			{
+				continue;
+			}
+
+			glm::mat4 pieceModel = glm::mat4(1.f);
+			pieceModel = glm::translate(pieceModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 0.f));
+			pieceModel = glm::scale(pieceModel, glm::vec3(tileSize, tileSize, 1.f));
+			glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
+
+			pieces[objectId]->DrawPiece(GL_TEXTURE0, piecesTextureId);
+		}
+	}
+
+	glBindVertexArray(0);
+}
+
+void Board::SetupBoardFromFEN(std::string fen)
+{
+	int index = 0;
+	PieceTeam team;
+
+	for (char c : fen)
+	{
+		// if letter, place piece
+		if (isalpha(c))
+		{
+			if (islower(c))
+			{
+				team = BLACK;
+			}
+			else
+			{
+				team = WHITE;
+			}
+
+			switch (tolower(c))
+			{
+				case 'r':
+					pieces[index] = new Piece(team, ROOK);
+					index++;
+					continue;
+				case 'n':
+					pieces[index] = new Piece(team, KNIGHT);
+					index++;
+					continue;
+				case 'b':
+					pieces[index] = new Piece(team, BISHOP);
+					index++;
+					continue;
+				case 'q':
+					pieces[index] = new Piece(team, QUEEN);
+					index++;
+					continue;
+				case 'k':
+					pieces[index] = new Piece(team, KING);
+					index++;
+					continue;
+				case 'p':
+					pieces[index] = new Piece(team, PAWN);
+					index++;
+					continue;
+			}
+		}
+
+		// if number, traverse board
+		if (isdigit(c))
+		{
+			int moveDistance = c - '0';
+			index += moveDistance;
+		}
+	}
 }

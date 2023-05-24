@@ -3,6 +3,7 @@
 Shader::Shader()
 {
     shaderProgramId = 0;
+    fragId, vertId = 0;
 }
 
 Shader::~Shader()

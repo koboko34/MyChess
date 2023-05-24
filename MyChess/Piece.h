@@ -18,14 +18,13 @@ public:
 	PieceTeam GetTeam() { return pieceTeam; }
 	PieceType GetType() { return pieceType; }
 
-	void DrawPiece();
+	void DrawPiece(GLenum textureUnit, GLuint textureId);
 
 private:
 	PieceTeam pieceTeam;
 	PieceType pieceType;
 
 	GLuint VAO, EBO, VBO;
-	GLuint textureId;
 
 	void Init();
 };

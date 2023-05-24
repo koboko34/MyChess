@@ -17,11 +17,25 @@ Piece::Piece(PieceTeam team, PieceType type)
 
 Piece::~Piece()
 {
+	if (VAO != 0)
+	{
+		glDeleteVertexArrays(1, &VAO);
+	}
+	if (EBO != 0)
+	{
+		glDeleteBuffers(1, &EBO);
+	}
+	if (VBO != 0)
+	{
+		glDeleteBuffers(1, &VBO);
+	}
 }
 
-void Piece::DrawPiece()
+void Piece::DrawPiece(GLenum textureUnit, GLuint textureId)
 {
 	glBindVertexArray(VAO);
+	glActiveTexture(textureUnit);
+	glBindTexture(GL_TEXTURE_2D, textureId);
 
 	// GL_LINE for wireframe, GL_FILL for standard
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -34,21 +48,14 @@ void Piece::Init()
 	float pieceTextureOffsetU = (offsetPixels / 1920.f);
 	float pieceTextureOffsetV = pieceTeam == WHITE ? 0.5f : 0.f;
 
-	/*
+	
 	GLfloat pieceVertices[] = {
 	 0.5f,  0.5f, 0.f,		pieceTextureOffsetU * (pieceType + 1),	0.5f + pieceTextureOffsetV,
 	 0.5f, -0.5f, 0.f,		pieceTextureOffsetU * (pieceType + 1),	pieceTextureOffsetV,
 	-0.5f, -0.5f, 0.f,		pieceTextureOffsetU * pieceType,		pieceTextureOffsetV,
 	-0.5f,  0.5f, 0.f,		pieceTextureOffsetU * pieceType,		0.5f + pieceTextureOffsetV
 	};
-	*/
-	GLfloat pieceVertices[] = {
- 0.5f,  0.5f, 0.f,		pieceTextureOffsetU,	0.5f,
- 0.5f, -0.5f, 0.f,		pieceTextureOffsetU,	0.f,
--0.5f, -0.5f, 0.f,		0.f,					0.f,
--0.5f,  0.5f, 0.f,		0.f,					0.5f
-	};
-
+	
 	GLuint pieceIndices[] = {
 	0, 1, 3,
 	1, 2, 3
