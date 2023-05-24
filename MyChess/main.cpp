@@ -13,6 +13,7 @@
 #include "Board.h"
 #include "Window.h"
 #include "Shader.h"
+#include "PickingTexture.h"
 
 int WIDTH = 1366; int HEIGHT = 768;
 
@@ -27,13 +28,26 @@ int main()
 	Board board;
 	board.Init(WIDTH, HEIGHT);
 	
+
+	PickingTexture pickingTexture;
+	pickingTexture.Init(WIDTH, HEIGHT);
+
 	while (!glfwWindowShouldClose(window.GetWindow()))
 	{
 		glfwPollEvents();
-		window.HandleInputs();
 
 		glClearColor(0.5f, 0.3f, 0.2f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		if (window.bIsPressed)
+		{
+			// need depth test enabled?
+			pickingTexture.EnableWriting();
+			board.PickingPass();
+			pickingTexture.DisableWriting();
+
+			printf("reading\n");
+		}
 
 		board.DrawBoard();
 

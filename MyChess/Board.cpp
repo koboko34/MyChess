@@ -42,6 +42,7 @@ void Board::Init(unsigned int width, unsigned int height)
 
 	SetupBoard(view, projection);
 	SetupPieces(view, projection);
+	SetupPickingShader(view, projection);
 
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 }
@@ -126,6 +127,45 @@ void Board::SetupPieces(glm::mat4 view, glm::mat4 projection)
 	{
 		pieces[i] = nullptr;
 	}
+}
+
+void Board::SetupPickingShader(glm::mat4 view, glm::mat4 projection)
+{
+	pickingShader.CompileShaders("shaders/pickingShader.vert", "shaders/pickingShader.frag");
+	pickingShader.UseShader();
+
+	pickingModelLocation = glGetUniformLocation(pickingShader.GetShaderId(), "model");
+	pickingViewLocation = glGetUniformLocation(pickingShader.GetShaderId(), "view");
+	pickingProjectionLocation = glGetUniformLocation(pickingShader.GetShaderId(), "projection");
+	objectIdLocation = glGetUniformLocation(pickingShader.GetShaderId(), "objectId");
+
+	glUniformMatrix4fv(pickingViewLocation, 1, GL_FALSE, glm::value_ptr(view));
+	glUniformMatrix4fv(pickingProjectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
+}
+
+void Board::PickingPass()
+{
+	pickingShader.UseShader();
+	glBindVertexArray(VAO);
+
+	for (size_t rank = 8; rank >= 1; rank--)
+	{
+		for (size_t file = 1; file <= 8; file++)
+		{
+			int objectId = (8 - rank) * 8 + file - 1;
+			GLuint adjustedObjectId = objectId + 1;
+			glUniform1ui(objectIdLocation, adjustedObjectId);
+
+			glm::mat4 tileModel = glm::mat4(1.f);
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 1.f));
+			tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
+			glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		}
+	}
+
+	glBindVertexArray(0);
 }
 
 void Board::RenderTiles()

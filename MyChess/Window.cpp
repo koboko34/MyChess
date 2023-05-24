@@ -7,6 +7,9 @@
 Window::Window()
 {
 	mainWindow = nullptr;
+	x = 0.f;
+	y = 0.f;
+	bIsPressed = false;
 }
 
 Window::~Window()
@@ -54,6 +57,9 @@ bool Window::Initialise(int width, int height, bool bFullscreen)
 		return false;
 	}
 
+	CreateCallbacks();
+	glfwSetInputMode(mainWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
 	// glEnable(GL_DEPTH_TEST);
 
 	glViewport(0, 0, bufferWidth, bufferHeight);
@@ -63,10 +69,46 @@ bool Window::Initialise(int width, int height, bool bFullscreen)
 	return true;
 }
 
-void Window::HandleInputs()
+void Window::CreateCallbacks()
 {
-	if (glfwGetKey(mainWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	glfwSetKeyCallback(mainWindow, HandleKeys);
+	glfwSetMouseButtonCallback(mainWindow, HandleMouseClicks);
+}
+
+void Window::HandleKeys(GLFWwindow* window, int key, int code, int action, int mode)
+{
+	Window* theWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
+
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 	{
-		glfwSetWindowShouldClose(mainWindow, true);
+		glfwSetWindowShouldClose(window, GLFW_TRUE);
+	}
+
+	if (key >= 0 && key < 1024)
+	{
+		if (action == GLFW_PRESS)
+		{
+			theWindow->keys[key] = true;
+		}
+		if (action == GLFW_RELEASE)
+		{
+			theWindow->keys[key] = false;
+		}
+	}
+}
+
+void Window::HandleMouseClicks(GLFWwindow* window, int button, int action, int mods)
+{
+	Window* theWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
+	
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	{
+		glfwGetCursorPos(window, &theWindow->x, &theWindow->y);
+		theWindow->bIsPressed = true;
+		printf("x: %f, y: %f\n", theWindow->x, theWindow->y);
+	}
+	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+	{
+		theWindow->bIsPressed = false;
 	}
 }

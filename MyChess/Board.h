@@ -23,17 +23,18 @@ public:
 
 	void Init(unsigned int width, unsigned int height);
 	void DrawBoard();
-
+	void PickingPass();
 
 private:
 
 	void SetupBoard(glm::mat4 view, glm::mat4 projection);
 	void SetupPieces(glm::mat4 view, glm::mat4 projection);
+	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
 
 	void RenderTiles();
 	void RenderPieces();
 
-	Shader boardShader, pieceShader;
+	Shader boardShader, pieceShader, pickingShader;
 	
 	GLfloat tileVertices[12] = {
 		 0.5f,  0.5f, 0.f,
@@ -49,6 +50,7 @@ private:
 
 	GLuint tileColorLocation, tileModelLocation, tileViewLocation, tileProjectionLocation;
 	GLuint pieceModelLocation, pieceViewLocation, pieceProjectionLocation;
+	GLuint pickingModelLocation, pickingViewLocation, pickingProjectionLocation, objectIdLocation;
 	GLuint VAO, EBO, VBO;
 
 	GLuint piecesTextureId;
