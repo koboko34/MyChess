@@ -27,10 +27,11 @@ int main()
 
 	Board board;
 	board.Init(WIDTH, HEIGHT);
-	
 
 	PickingTexture pickingTexture;
 	pickingTexture.Init(WIDTH, HEIGHT);
+	PickingTexture::PixelInfo pixel;
+	int clickedObjectId = -1;
 
 	while (!glfwWindowShouldClose(window.GetWindow()))
 	{
@@ -46,10 +47,14 @@ int main()
 			board.PickingPass();
 			pickingTexture.DisableWriting();
 
-			printf("reading\n");
+			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
+			clickedObjectId = pixel.objectId - 1;
+			printf("clickedObjectId = %i\n", clickedObjectId);
+
+			window.bIsPressed = false;
 		}
 
-		board.DrawBoard();
+		board.DrawBoard(clickedObjectId);
 
 		glfwSwapBuffers(window.GetWindow());
 	}

@@ -12,7 +12,7 @@ public:
 
 	GLFWwindow* GetWindow() const { return mainWindow; }
 
-	double x, y;
+	double mouseX, mouseY;
 	bool bIsPressed;
 
 private:

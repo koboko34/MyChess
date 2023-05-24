@@ -22,7 +22,7 @@ public:
 	~Board();
 
 	void Init(unsigned int width, unsigned int height);
-	void DrawBoard();
+	void DrawBoard(int selectedObjectId);
 	void PickingPass();
 
 private:
@@ -31,7 +31,7 @@ private:
 	void SetupPieces(glm::mat4 view, glm::mat4 projection);
 	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
 
-	void RenderTiles();
+	void RenderTiles(int selectedObjectId);
 	void RenderPieces();
 
 	Shader boardShader, pieceShader, pickingShader;
@@ -48,9 +48,9 @@ private:
 		1, 2, 3
 	};
 
-	GLuint tileColorLocation, tileModelLocation, tileViewLocation, tileProjectionLocation;
+	GLuint tileColorLocation, tileColorModLocation, tileModelLocation, tileViewLocation, tileProjectionLocation;
 	GLuint pieceModelLocation, pieceViewLocation, pieceProjectionLocation;
-	GLuint pickingModelLocation, pickingViewLocation, pickingProjectionLocation, objectIdLocation;
+	GLuint pickingModelLocation, pickingViewLocation, pickingProjectionLocation, objectIdLocation, drawIdLocation;
 	GLuint VAO, EBO, VBO;
 
 	GLuint piecesTextureId;

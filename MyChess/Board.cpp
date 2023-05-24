@@ -38,7 +38,7 @@ void Board::Init(unsigned int width, unsigned int height)
 	view = glm::translate(view, glm::vec3(0.f, 0.f, -1.f));
 
 	aspect = (float)width / (float)height;
-	glm::mat4 projection = glm::ortho(0.f, aspect, 0.f, 1.f, 0.f, 1000.f);
+	glm::mat4 projection = glm::ortho(0.f, aspect, 0.f, 1.f, 0.f, 100.f);
 
 	SetupBoard(view, projection);
 	SetupPieces(view, projection);
@@ -47,10 +47,10 @@ void Board::Init(unsigned int width, unsigned int height)
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 }
 
-void Board::DrawBoard()
+void Board::DrawBoard(int selectedObjectId)
 {
 	boardShader.UseShader();
-	RenderTiles();
+	RenderTiles(selectedObjectId);
 	
 	pieceShader.UseShader();
 	RenderPieces();
@@ -80,6 +80,7 @@ void Board::SetupBoard(glm::mat4 view, glm::mat4 projection)
 	boardShader.UseShader();
 
 	tileColorLocation = glGetUniformLocation(boardShader.GetShaderId(), "tileColor");
+	tileColorModLocation = glGetUniformLocation(boardShader.GetShaderId(), "colorMod");
 	tileModelLocation = glGetUniformLocation(boardShader.GetShaderId(), "model");
 	tileViewLocation = glGetUniformLocation(boardShader.GetShaderId(), "view");
 	tileProjectionLocation = glGetUniformLocation(boardShader.GetShaderId(), "projection");
@@ -138,6 +139,10 @@ void Board::SetupPickingShader(glm::mat4 view, glm::mat4 projection)
 	pickingViewLocation = glGetUniformLocation(pickingShader.GetShaderId(), "view");
 	pickingProjectionLocation = glGetUniformLocation(pickingShader.GetShaderId(), "projection");
 	objectIdLocation = glGetUniformLocation(pickingShader.GetShaderId(), "objectId");
+	drawIdLocation = glGetUniformLocation(pickingShader.GetShaderId(), "drawId");
+
+	unsigned int tempDrawId = 0;
+	glUniform1ui(drawIdLocation, tempDrawId);
 
 	glUniformMatrix4fv(pickingViewLocation, 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(pickingProjectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
@@ -152,7 +157,7 @@ void Board::PickingPass()
 	{
 		for (size_t file = 1; file <= 8; file++)
 		{
-			int objectId = (8 - rank) * 8 + file - 1;
+			unsigned int objectId = (8 - rank) * 8 + file - 1;
 			GLuint adjustedObjectId = objectId + 1;
 			glUniform1ui(objectIdLocation, adjustedObjectId);
 
@@ -168,7 +173,7 @@ void Board::PickingPass()
 	glBindVertexArray(0);
 }
 
-void Board::RenderTiles()
+void Board::RenderTiles(int selectedObjectId)
 {
 	glBindVertexArray(VAO);
 
@@ -185,10 +190,19 @@ void Board::RenderTiles()
 				glUniform3f(tileColorLocation, blackTileColor.x, blackTileColor.y, blackTileColor.z);
 			}
 
-			int objectId = (8 - rank) * 8 + file - 1;
+			unsigned int objectId = (8 - rank) * 8 + file - 1;
+			if (selectedObjectId == objectId)
+			{
+				glUniform3f(tileColorModLocation, 0.f, 0.f, 1.f);
+				printf("Selected id found!");
+			}
+			else
+			{
+				glUniform3f(tileColorModLocation, 1.f, 1.f, 1.f);
+			}
 
 			glm::mat4 tileModel = glm::mat4(1.f);
-			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 1.f));
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, -2.f));
 			tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
 			glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 

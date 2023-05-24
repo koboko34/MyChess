@@ -7,8 +7,8 @@
 Window::Window()
 {
 	mainWindow = nullptr;
-	x = 0.f;
-	y = 0.f;
+	mouseX = 0.f;
+	mouseY = 0.f;
 	bIsPressed = false;
 }
 
@@ -60,7 +60,7 @@ bool Window::Initialise(int width, int height, bool bFullscreen)
 	CreateCallbacks();
 	glfwSetInputMode(mainWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-	// glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 
 	glViewport(0, 0, bufferWidth, bufferHeight);
 
@@ -103,9 +103,9 @@ void Window::HandleMouseClicks(GLFWwindow* window, int button, int action, int m
 	
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{
-		glfwGetCursorPos(window, &theWindow->x, &theWindow->y);
+		glfwGetCursorPos(window, &theWindow->mouseX, &theWindow->mouseY);
 		theWindow->bIsPressed = true;
-		printf("x: %f, y: %f\n", theWindow->x, theWindow->y);
+		printf("x: %f, y: %f\n", theWindow->mouseX, theWindow->mouseY);
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
 	{
