@@ -18,7 +18,7 @@ public:
 	PieceTeam GetTeam() { return pieceTeam; }
 	PieceType GetType() { return pieceType; }
 
-	void DrawPiece(GLenum textureUnit, GLuint textureId);
+	void DrawPiece();
 
 private:
 	PieceTeam pieceTeam;

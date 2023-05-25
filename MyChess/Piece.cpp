@@ -31,14 +31,12 @@ Piece::~Piece()
 	}
 }
 
-void Piece::DrawPiece(GLenum textureUnit, GLuint textureId)
+void Piece::DrawPiece()
 {
 	glBindVertexArray(VAO);
-	glActiveTexture(textureUnit);
-	glBindTexture(GL_TEXTURE_2D, textureId);
 
 	// GL_LINE for wireframe, GL_FILL for standard
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	// glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 

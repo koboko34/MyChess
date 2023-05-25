@@ -106,7 +106,7 @@ void Board::SetupPieces(glm::mat4 view, glm::mat4 projection)
 	if (data)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
+		// glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	else
 	{
@@ -193,8 +193,8 @@ void Board::RenderTiles(int selectedObjectId)
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
 			if (selectedObjectId == objectId)
 			{
-				glUniform3f(tileColorModLocation, 0.f, 0.f, 1.f);
-				printf("Selected id found!");
+				glUniform3f(tileColorModLocation, 1.f, 0.5f, 0.0f);
+				printf("Selected id found!\n");
 			}
 			else
 			{
@@ -215,6 +215,9 @@ void Board::RenderTiles(int selectedObjectId)
 
 void Board::RenderPieces()
 {	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, piecesTextureId);
+	
 	for (size_t rank = 8; rank >= 1; rank--)
 	{
 		for (size_t file = 1; file <= 8; file++)
@@ -231,7 +234,7 @@ void Board::RenderPieces()
 			pieceModel = glm::scale(pieceModel, glm::vec3(tileSize, tileSize, 1.f));
 			glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
 
-			pieces[objectId]->DrawPiece(GL_TEXTURE0, piecesTextureId);
+			pieces[objectId]->DrawPiece();
 		}
 	}
 
