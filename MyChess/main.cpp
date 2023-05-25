@@ -31,13 +31,12 @@ int main()
 	PickingTexture pickingTexture;
 	pickingTexture.Init(WIDTH, HEIGHT);
 	PickingTexture::PixelInfo pixel;
-	int clickedObjectId = 3;
+	int clickedObjectId = -1;
 
 	while (!glfwWindowShouldClose(window.GetWindow()))
 	{
 		glfwPollEvents();
 
-		// if (window.bIsPressed)
 		if (window.bIsPressed)
 		{
 			
@@ -52,14 +51,13 @@ int main()
 			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
 			pickingTexture.DisableWriting();
 
-			clickedObjectId = pixel.objectId - 1;
+			pixel.Print();
+
+			clickedObjectId = clickedObjectId == pixel.objectId - 1 ? -1 : pixel.objectId - 1;
 			printf("clickedObjectId = %i\n", clickedObjectId);
 
 			window.bIsPressed = false;
 		}
-
-		glClearColor(0.5f, 0.3f, 0.2f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		board.DrawBoard(clickedObjectId);
 

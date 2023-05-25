@@ -18,10 +18,11 @@ public:
 		GLuint objectId = 0;
 		GLuint drawId = 0;
 		GLuint primId = 0;
+		GLuint r = 0;
 
 		void Print()
 		{
-			printf("ObjectID: %d, DrawID: %d, PrimID: %d\n", objectId, drawId, primId);
+			printf("ObjectID: %d, DrawID: %d, PrimID: %d, r: %d\n", objectId, drawId, primId, r);
 		}
 	};
 

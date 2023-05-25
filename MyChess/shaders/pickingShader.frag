@@ -3,9 +3,9 @@
 uniform uint objectId;
 uniform uint drawId;
 
-out uvec3 FragColor;
+out uvec4 FragColor;
 
 void main()
 {
-    FragColor = uvec3(objectId, drawId, gl_PrimitiveID);
+    FragColor = uvec4(objectId, drawId, gl_PrimitiveID, 1);
 }

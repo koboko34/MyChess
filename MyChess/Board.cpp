@@ -49,6 +49,10 @@ void Board::Init(unsigned int width, unsigned int height)
 
 void Board::DrawBoard(int selectedObjectId)
 {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClearColor(0.5f, 0.3f, 0.2f, 1.f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	boardShader.UseShader();
 	RenderTiles(selectedObjectId);
 	
@@ -91,6 +95,8 @@ void Board::SetupBoard(glm::mat4 view, glm::mat4 projection)
 
 void Board::SetupPieces(glm::mat4 view, glm::mat4 projection)
 {
+	glActiveTexture(GL_TEXTURE0);
+	
 	glGenTextures(1, &piecesTextureId);
 	glBindTexture(GL_TEXTURE_2D, piecesTextureId);
 
@@ -141,7 +147,7 @@ void Board::SetupPickingShader(glm::mat4 view, glm::mat4 projection)
 	objectIdLocation = glGetUniformLocation(pickingShader.GetShaderId(), "objectId");
 	drawIdLocation = glGetUniformLocation(pickingShader.GetShaderId(), "drawId");
 
-	unsigned int tempDrawId = 0;
+	unsigned int tempDrawId = 3;
 	glUniform1ui(drawIdLocation, tempDrawId);
 
 	glUniformMatrix4fv(pickingViewLocation, 1, GL_FALSE, glm::value_ptr(view));
@@ -193,12 +199,11 @@ void Board::RenderTiles(int selectedObjectId)
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
 			if (selectedObjectId == objectId)
 			{
-				glUniform3f(tileColorModLocation, 1.f, 0.5f, 0.0f);
-				printf("Selected id found!\n");
+				glUniform1i(tileColorModLocation, 0);
 			}
 			else
 			{
-				glUniform3f(tileColorModLocation, 1.f, 1.f, 1.f);
+				glUniform1i(tileColorModLocation, 1);
 			}
 
 			glm::mat4 tileModel = glm::mat4(1.f);
