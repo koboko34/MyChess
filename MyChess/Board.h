@@ -25,7 +25,7 @@ public:
 	void DrawBoard(int selectedObjectId);
 	void PickingPass();
 
-	void MovePiece(int startTile, int endTile);
+	bool MovePiece(int startTile, int endTile);
 
 	bool PieceExists(int index);
 
@@ -71,7 +71,18 @@ private:
 	float aspect;
 
 	PieceTeam currentTurn;
-	
 	void CompleteTurn() { currentTurn = currentTurn == WHITE ? BLACK : WHITE; }
+
+	bool CheckLegalMove(int startTile, int endTile);
+	bool CheckKingMove(int startTile, int endTile);
+	bool CheckQueenMove(int startTile, int endTile);
+	bool CheckBishopMove(int startTile, int endTile);
+	bool CheckKnightMove(int startTile, int endTile);
+	bool CheckRookMove(int startTile, int endTile);
+	bool CheckPawnMove(int startTile, int endTile);
+
+	void HandleEnPassant();
+	int lastEnPassantIndex;
+
 };
 

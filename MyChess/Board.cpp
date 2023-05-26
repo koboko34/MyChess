@@ -4,6 +4,7 @@ Board::Board()
 {
 	VAO, EBO, VBO = 0;
 	currentTurn = WHITE;
+	lastEnPassantIndex = -1;
 }
 
 Board::~Board()
@@ -180,18 +181,32 @@ void Board::PickingPass()
 	glBindVertexArray(0);
 }
 
-void Board::MovePiece(int startTile, int endTile)
+bool Board::MovePiece(int startTile, int endTile)
 {
 	printf("Attempting to play a move...\n");
 	
 	if (pieces[startTile] == nullptr)
-		return;
+		return false;
 	
 	if (pieces[startTile]->GetTeam() != currentTurn)
 	{
 		printf("It is %s's move!\n", currentTurn ? "black" : "white");
-		return;
+		return false;
 	}
+
+	if (pieces[endTile] != nullptr && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
+	{
+		printf("Cannot take your own team's piece!\n");
+		return false;
+	}
+
+	// check piece specific move
+	if (!CheckLegalMove(startTile, endTile))
+	{
+		printf("Not a legal move for this piece!\n");
+		return false;
+	}
+
 
 	// checks complete
 	if (pieces[endTile] != nullptr)
@@ -202,7 +217,14 @@ void Board::MovePiece(int startTile, int endTile)
 	pieces[endTile] = pieces[startTile];
 	pieces[startTile] = nullptr;
 
+	if (pieces[endTile]->GetType() == PAWN)
+	{
+		pieces[endTile]->bPawnMoved = true;
+	}
+
+	HandleEnPassant();
 	CompleteTurn();
+	return true;
 }
 
 bool Board::PieceExists(int index)
@@ -279,6 +301,99 @@ void Board::RenderPieces()
 	}
 
 	glBindVertexArray(0);
+}
+
+bool Board::CheckLegalMove(int startTile, int endTile)
+{
+	switch (pieces[startTile]->GetType())
+	{
+		case KING:
+			return CheckKingMove(startTile, endTile);
+		case QUEEN:
+			return CheckQueenMove(startTile, endTile);
+		case BISHOP:
+			return CheckBishopMove(startTile, endTile);
+		case KNIGHT:
+			return CheckKnightMove(startTile, endTile);
+		case ROOK:
+			return CheckRookMove(startTile, endTile);
+		case PAWN:
+			return CheckPawnMove(startTile, endTile);
+	}
+	return false;
+}
+
+bool Board::CheckKingMove(int startTile, int endTile)
+{
+	return false;
+}
+
+bool Board::CheckQueenMove(int startTile, int endTile)
+{
+	return false;
+}
+
+bool Board::CheckBishopMove(int startTile, int endTile)
+{
+	return false;
+}
+
+bool Board::CheckKnightMove(int startTile, int endTile)
+{
+	return false;
+}
+
+bool Board::CheckRookMove(int startTile, int endTile)
+{
+	return false;
+}
+
+bool Board::CheckPawnMove(int startTile, int endTile)
+{
+	// 4 cases, move forward by 1, move forward by 2 (only first move), take diagonal, take by en passant
+	
+	int teamDir = pieces[startTile]->GetTeam() == WHITE ? -1 : 1;
+
+	// forward by 1
+	if (endTile == startTile + 8 * teamDir && pieces[endTile] == nullptr)
+	{
+		return true;
+	}
+
+	// forward by 2 if first move of this pawn
+	if (endTile == startTile + 16 * teamDir && pieces[endTile] == nullptr && pieces[endTile - 8 * teamDir] == nullptr && pieces[startTile]->bPawnMoved == false)
+	{
+		pieces[startTile + 8 * teamDir] = new Piece(pieces[startTile]->GetTeam(), EN_PASSANT);
+		lastEnPassantIndex = startTile + 8 * teamDir;
+		return true;
+	}
+
+	// take on diagonal, en passant
+	if ((pieces[endTile] != nullptr) && (endTile == startTile + 7 * teamDir || endTile == startTile + 9 * teamDir))
+	{
+		// handle en passant
+		if (pieces[endTile]->GetType() == EN_PASSANT)
+		{
+			delete pieces[endTile + 8 * -teamDir];
+			pieces[endTile + 8 * -teamDir] = nullptr;
+		}
+		return true;
+	}
+
+	return false;
+}
+
+void Board::HandleEnPassant()
+{
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (pieces[i] != nullptr && pieces[i]->GetType() == EN_PASSANT && i != lastEnPassantIndex)
+		{
+			delete pieces[i];
+			pieces[i] = nullptr;
+		}
+	}
+	lastEnPassantIndex = -1;
 }
 
 void Board::SetupBoardFromFEN(std::string fen)

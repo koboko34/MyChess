@@ -20,6 +20,8 @@ public:
 
 	void DrawPiece();
 
+	bool bPawnMoved;
+
 private:
 	PieceTeam pieceTeam;
 	PieceType pieceType;

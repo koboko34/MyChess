@@ -10,7 +10,8 @@ enum PieceType
 	BISHOP = 2,
 	KNIGHT = 3,
 	ROOK = 4,
-	PAWN = 5
+	PAWN = 5,
+	EN_PASSANT = 6
 };
 
 enum PieceTeam
