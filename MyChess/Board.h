@@ -25,11 +25,17 @@ public:
 	void DrawBoard(int selectedObjectId);
 	void PickingPass();
 
+	void MovePiece(int startTile, int endTile);
+
+	bool PieceExists(int index);
+
 private:
 
 	void SetupBoard(glm::mat4 view, glm::mat4 projection);
 	void SetupPieces(glm::mat4 view, glm::mat4 projection);
 	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
+
+	void SetupBoardFromFEN(std::string fen);
 
 	void RenderTiles(int selectedObjectId);
 	void RenderPieces();
@@ -64,7 +70,8 @@ private:
 
 	float aspect;
 
-	void SetupBoardFromFEN(std::string fen);
+	PieceTeam currentTurn;
 	
+	void CompleteTurn() { currentTurn = currentTurn == WHITE ? BLACK : WHITE; }
 };
 

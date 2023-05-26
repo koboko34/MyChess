@@ -3,6 +3,7 @@
 Board::Board()
 {
 	VAO, EBO, VBO = 0;
+	currentTurn = WHITE;
 }
 
 Board::~Board()
@@ -179,6 +180,40 @@ void Board::PickingPass()
 	glBindVertexArray(0);
 }
 
+void Board::MovePiece(int startTile, int endTile)
+{
+	printf("Attempting to play a move...\n");
+	
+	if (pieces[startTile] == nullptr)
+		return;
+	
+	if (pieces[startTile]->GetTeam() != currentTurn)
+	{
+		printf("It is %s's move!\n", currentTurn ? "black" : "white");
+		return;
+	}
+
+	// checks complete
+	if (pieces[endTile] != nullptr)
+	{
+		delete pieces[endTile];
+		// pieces[endTile] = nullptr;
+	}
+	pieces[endTile] = pieces[startTile];
+	pieces[startTile] = nullptr;
+
+	CompleteTurn();
+}
+
+bool Board::PieceExists(int index)
+{
+	if (pieces[index] == nullptr)
+	{
+		return false;
+	}
+	return true;
+}
+
 void Board::RenderTiles(int selectedObjectId)
 {
 	glBindVertexArray(VAO);
@@ -197,7 +232,7 @@ void Board::RenderTiles(int selectedObjectId)
 			}
 
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
-			if (selectedObjectId == objectId)
+			if (selectedObjectId == objectId && pieces[objectId] != nullptr)
 			{
 				glUniform1i(tileColorModLocation, 0);
 			}

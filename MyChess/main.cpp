@@ -51,9 +51,22 @@ int main()
 			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
 			pickingTexture.DisableWriting();
 
-			pixel.Print();
+			// pixel.Print();
 
-			clickedObjectId = clickedObjectId == pixel.objectId - 1 ? -1 : pixel.objectId - 1;
+			if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
+			{
+				clickedObjectId = pixel.objectId - 1;
+			}
+			else if (clickedObjectId == pixel.objectId - 1)
+			{
+				clickedObjectId = -1;
+			}
+			else
+			{
+				board.MovePiece(clickedObjectId, pixel.objectId - 1);
+				clickedObjectId = -1;
+			}
+
 			printf("clickedObjectId = %i\n", clickedObjectId);
 
 			window.bIsPressed = false;
