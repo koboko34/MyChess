@@ -47,6 +47,8 @@ void Board::Init(unsigned int width, unsigned int height)
 	SetupPickingShader(view, projection);
 
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+
+	CalculateEdges();
 }
 
 void Board::DrawBoard(int selectedObjectId)
@@ -114,7 +116,6 @@ void Board::SetupPieces(glm::mat4 view, glm::mat4 projection)
 	if (data)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		// glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	else
 	{
@@ -303,6 +304,24 @@ void Board::RenderPieces()
 	glBindVertexArray(0);
 }
 
+void Board::CalculateEdges()
+{
+	int temp;
+
+	for (size_t i = 0; i < 64; i++)
+	{
+		temp = i % 8;
+
+		edgesFromTiles[i].left = i - temp;
+		edgesFromTiles[i].right = edgesFromTiles[i].left + 7;
+
+		temp = i / 8;
+
+		edgesFromTiles[i].top = i - (8 * temp);
+		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
+	}
+}
+
 bool Board::CheckLegalMove(int startTile, int endTile)
 {
 	switch (pieces[startTile]->GetType())
@@ -323,7 +342,7 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 	return false;
 }
 
-bool Board::CheckKingMove(int startTile, int endTile)
+bool Board::CheckKingMove(int startTile, int endTile) const
 {
 	// if forward or backward
 	if (endTile == startTile + 8|| endTile == startTile - 8)
@@ -383,23 +402,79 @@ bool Board::CheckKingMove(int startTile, int endTile)
 	return false;
 }
 
-bool Board::CheckQueenMove(int startTile, int endTile)
+bool Board::CheckQueenMove(int startTile, int endTile) const
+{
+	return CheckRookMove(startTile, endTile) || CheckBishopMove(startTile, endTile);
+}
+
+bool Board::CheckBishopMove(int startTile, int endTile) const
 {
 	return false;
 }
 
-bool Board::CheckBishopMove(int startTile, int endTile)
+bool Board::CheckKnightMove(int startTile, int endTile) const
 {
 	return false;
 }
 
-bool Board::CheckKnightMove(int startTile, int endTile)
+bool Board::CheckRookMove(int startTile, int endTile) const
 {
-	return false;
-}
+	int dir = startTile < endTile ? 1 : -1;
+	int target = startTile + 8 * dir;
 
-bool Board::CheckRookMove(int startTile, int endTile)
-{
+	int top = edgesFromTiles[startTile].top;
+	int bottom = edgesFromTiles[startTile].bottom;
+
+	// forward and backwards
+	while (top <= target && target <= bottom)
+	{
+		// if blocked by own team's piece
+		if (pieces[target] != nullptr && pieces[target]->GetTeam() == currentTurn)
+		{
+			break;
+		}
+
+		// if blocked by enemy before reaching endTile
+		if (pieces[target] != nullptr && pieces[target]->GetTeam() != currentTurn && endTile != target)
+		{
+			break;
+		}
+		
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		target += 8 * dir;
+	}
+
+	target = startTile + 1 * dir;
+	int left = edgesFromTiles[startTile].left;
+	int right = edgesFromTiles[startTile].right;
+
+	// lateral movement
+	while (left <= target && target <= right)
+	{
+		// if blocked by own team's piece
+		if (pieces[target] != nullptr && pieces[target]->GetTeam() == currentTurn)
+		{
+			break;
+		}
+
+		// if blocked by enemy before reaching endTile
+		if (pieces[target] != nullptr && pieces[target]->GetTeam() != currentTurn && endTile != target)
+		{
+			break;
+		}
+
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		target += 1 * dir;
+	}
+	
 	return false;
 }
 

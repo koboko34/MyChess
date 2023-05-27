@@ -73,12 +73,25 @@ private:
 	PieceTeam currentTurn;
 	void CompleteTurn() { currentTurn = currentTurn == WHITE ? BLACK : WHITE; }
 
+	struct EdgesFromTile
+	{
+		int left;
+		int right;
+		int top;
+		int bottom;
+
+		void Print() { printf("Left: %i, Right: %i, Top: %i, Bottom: %i\n", left, right, top, bottom); }
+	};
+
+	EdgesFromTile edgesFromTiles[64];
+	void CalculateEdges();
+
 	bool CheckLegalMove(int startTile, int endTile);
-	bool CheckKingMove(int startTile, int endTile);
-	bool CheckQueenMove(int startTile, int endTile);
-	bool CheckBishopMove(int startTile, int endTile);
-	bool CheckKnightMove(int startTile, int endTile);
-	bool CheckRookMove(int startTile, int endTile);
+	bool CheckKingMove(int startTile, int endTile) const;
+	bool CheckQueenMove(int startTile, int endTile) const;
+	bool CheckBishopMove(int startTile, int endTile) const;
+	bool CheckKnightMove(int startTile, int endTile) const;
+	bool CheckRookMove(int startTile, int endTile) const;
 	bool CheckPawnMove(int startTile, int endTile);
 
 	void HandleEnPassant();
