@@ -325,6 +325,61 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 
 bool Board::CheckKingMove(int startTile, int endTile)
 {
+	// if forward or backward
+	if (endTile == startTile + 8|| endTile == startTile - 8)
+	{
+		return true;
+	}
+
+	// if on A file
+	if (startTile % 8 == 0)
+	{
+		// only look for +1 to prevent jump across board
+		if (endTile == startTile + 1)
+		{
+			return true;
+		}
+
+		// only look for +9 and -7 to prevent jump across board
+		if (endTile == startTile + 9 || endTile == startTile - 7)
+		{
+			return true;
+		}
+		
+		return false;
+	}
+
+	// if on H file
+	if (startTile % 8 == 7)
+	{
+		// only look for -1 to prevent jumps across board
+		if (endTile == startTile - 1)
+		{
+			return true;
+		}
+
+		// only look for +7 and -9 to prevent jumps across board
+		if (endTile == startTile + 7 || endTile == startTile - 9)
+		{
+			return true;
+		}
+
+		return false;
+	}
+	
+	// if away from side walls, lateral
+	if (endTile == startTile + 1 || endTile == startTile - 1)
+	{
+		return true;
+	}
+
+	// if away from side walls, diagonal
+	if (endTile == startTile + 9 || endTile == startTile - 9 ||
+		endTile == startTile + 7 || endTile == startTile - 7)
+	{
+		return true;
+	}
+
 	return false;
 }
 
