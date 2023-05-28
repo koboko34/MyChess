@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <algorithm>
+#include <array>
 
 #include <GL/glew.h>
 
@@ -71,7 +73,15 @@ private:
 	float aspect;
 
 	PieceTeam currentTurn;
+	bool IsCurrentTurn(int index) const { return pieces[index]->GetTeam() == currentTurn; }
 	void CompleteTurn() { currentTurn = currentTurn == WHITE ? BLACK : WHITE; }
+
+	int firstRank[8] = { 56, 57, 58, 59, 60, 61, 62, 63 };
+	int eighthRank[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+	int aFile[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
+	int hFile[8] = { 7, 15, 23, 31, 39, 47, 55, 63 };
+
+	bool TileInArray(int target, int arr[]);
 
 	struct EdgesFromTile
 	{
@@ -80,7 +90,13 @@ private:
 		int top;
 		int bottom;
 
-		void Print() { printf("Left: %i, Right: %i, Top: %i, Bottom: %i\n", left, right, top, bottom); }
+		int topLeft;
+		int topRight;
+		int bottomLeft;
+		int bottomRight;
+
+		void Print() { printf("Left: %i, Right: %i, Top: %i, Bottom: %i, TopLeft: %i, TopRight: %i, BottomLeft: %i, BottomRight: %i\n",
+							left, right, top, bottom, topLeft, topRight, bottomLeft, bottomRight); }
 	};
 
 	EdgesFromTile edgesFromTiles[64];

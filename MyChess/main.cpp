@@ -67,7 +67,7 @@ int main()
 				clickedObjectId = -1;
 			}
 
-			printf("clickedObjectId = %i\n", clickedObjectId);
+			// printf("clickedObjectId = %i\n", clickedObjectId);
 
 			window.bIsPressed = false;
 		}

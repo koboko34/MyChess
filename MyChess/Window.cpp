@@ -105,7 +105,7 @@ void Window::HandleMouseClicks(GLFWwindow* window, int button, int action, int m
 	{
 		glfwGetCursorPos(window, &theWindow->mouseX, &theWindow->mouseY);
 		theWindow->bIsPressed = true;
-		printf("x: %f, y: %f\n", theWindow->mouseX, theWindow->mouseY);
+		// printf("x: %f, y: %f\n", theWindow->mouseX, theWindow->mouseY);
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
 	{

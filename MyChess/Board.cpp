@@ -189,13 +189,13 @@ bool Board::MovePiece(int startTile, int endTile)
 	if (pieces[startTile] == nullptr)
 		return false;
 	
-	if (pieces[startTile]->GetTeam() != currentTurn)
+	if (!IsCurrentTurn(startTile))
 	{
 		printf("It is %s's move!\n", currentTurn ? "black" : "white");
 		return false;
 	}
 
-	if (pieces[endTile] != nullptr && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
+	if (pieces[endTile] && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
 	{
 		printf("Cannot take your own team's piece!\n");
 		return false;
@@ -210,7 +210,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 
 	// checks complete
-	if (pieces[endTile] != nullptr)
+	if (pieces[endTile])
 	{
 		delete pieces[endTile];
 		// pieces[endTile] = nullptr;
@@ -304,6 +304,11 @@ void Board::RenderPieces()
 	glBindVertexArray(0);
 }
 
+bool Board::TileInArray(int target, int arr[])
+{
+	return std::find(arr, arr + 8, target) != arr + 8;
+}
+
 void Board::CalculateEdges()
 {
 	int temp;
@@ -319,6 +324,37 @@ void Board::CalculateEdges()
 
 		edgesFromTiles[i].top = i - (8 * temp);
 		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
+
+		temp = i;
+		while (!TileInArray(temp, eighthRank) && !TileInArray(temp, hFile))
+		{
+			temp -= 7;
+		}
+		edgesFromTiles[i].topRight = temp;
+
+		temp = i;
+		while (!TileInArray(temp, eighthRank) && !TileInArray(temp, aFile))
+		{
+			temp -= 9;
+		}
+		edgesFromTiles[i].topLeft = temp;
+
+		temp = i;
+		while (!TileInArray(temp, firstRank) && !TileInArray(temp, aFile))
+		{
+			temp += 7;
+		}
+		edgesFromTiles[i].bottomLeft = temp;
+
+		temp = i;
+		while (!TileInArray(temp, firstRank) && !TileInArray(temp, hFile))
+		{
+			temp += 9;
+		}
+		edgesFromTiles[i].bottomRight = temp;
+
+		printf("%i\n", i);
+		edgesFromTiles[i].Print();
 	}
 }
 
@@ -409,6 +445,8 @@ bool Board::CheckQueenMove(int startTile, int endTile) const
 
 bool Board::CheckBishopMove(int startTile, int endTile) const
 {
+	// check using pre-calculated edges
+	
 	return false;
 }
 
@@ -429,13 +467,13 @@ bool Board::CheckRookMove(int startTile, int endTile) const
 	while (top <= target && target <= bottom)
 	{
 		// if blocked by own team's piece
-		if (pieces[target] != nullptr && pieces[target]->GetTeam() == currentTurn)
+		if (pieces[target] && IsCurrentTurn(target))
 		{
 			break;
 		}
 
 		// if blocked by enemy before reaching endTile
-		if (pieces[target] != nullptr && pieces[target]->GetTeam() != currentTurn && endTile != target)
+		if (pieces[target] && !IsCurrentTurn(target) && endTile != target)
 		{
 			break;
 		}
@@ -456,13 +494,13 @@ bool Board::CheckRookMove(int startTile, int endTile) const
 	while (left <= target && target <= right)
 	{
 		// if blocked by own team's piece
-		if (pieces[target] != nullptr && pieces[target]->GetTeam() == currentTurn)
+		if (pieces[target] && IsCurrentTurn(target))
 		{
 			break;
 		}
 
 		// if blocked by enemy before reaching endTile
-		if (pieces[target] != nullptr && pieces[target]->GetTeam() != currentTurn && endTile != target)
+		if (pieces[target] && !IsCurrentTurn(target) && endTile != target)
 		{
 			break;
 		}
@@ -499,7 +537,7 @@ bool Board::CheckPawnMove(int startTile, int endTile)
 	}
 
 	// take on diagonal, en passant
-	if ((pieces[endTile] != nullptr) && (endTile == startTile + 7 * teamDir || endTile == startTile + 9 * teamDir))
+	if ((pieces[endTile]) && (endTile == startTile + 7 * teamDir || endTile == startTile + 9 * teamDir))
 	{
 		// handle en passant
 		if (pieces[endTile]->GetType() == EN_PASSANT)
@@ -517,7 +555,7 @@ void Board::HandleEnPassant()
 {
 	for (size_t i = 0; i < 64; i++)
 	{
-		if (pieces[i] != nullptr && pieces[i]->GetType() == EN_PASSANT && i != lastEnPassantIndex)
+		if (pieces[i] && pieces[i]->GetType() == EN_PASSANT && i != lastEnPassantIndex)
 		{
 			delete pieces[i];
 			pieces[i] = nullptr;
