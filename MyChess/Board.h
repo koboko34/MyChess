@@ -3,6 +3,7 @@
 #include <string>
 #include <algorithm>
 #include <array>
+#include <vector>
 
 #include <GL/glew.h>
 
@@ -76,14 +77,18 @@ private:
 	bool IsCurrentTurn(int index) const { return pieces[index]->GetTeam() == currentTurn; }
 	void CompleteTurn() { currentTurn = currentTurn == WHITE ? BLACK : WHITE; }
 
-	int firstRank[8] = { 56, 57, 58, 59, 60, 61, 62, 63 };
-	int eighthRank[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-	int aFile[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
-	int bFile[8] = { 1, 9, 17, 25, 33, 41, 49, 57 };
-	int gFile[8] = { 6, 14, 22, 30, 38, 46, 54, 62 };
-	int hFile[8] = { 7, 15, 23, 31, 39, 47, 55, 63 };
+	std::vector<int> firstRank;
+	std::vector<int> eighthRank;
+	std::vector<int> aFile;
+	std::vector<int> bFile;
+	std::vector<int> gFile;
+	std::vector<int> hFile;
+	std::vector<int> topLeft;
+	std::vector<int> topRight;
+	std::vector<int> bottomLeft;
+	std::vector<int> bottomRight;
 
-	bool TileInArray(int target, const int arr[]) const;
+	bool TileInArray(int target, std::vector<int> arr) const;
 
 	struct EdgesFromTile
 	{
@@ -102,6 +107,7 @@ private:
 	};
 
 	EdgesFromTile edgesFromTiles[64];
+	void PrepEdges();
 	void CalculateEdges();
 
 	bool CheckLegalMove(int startTile, int endTile);
@@ -111,9 +117,6 @@ private:
 	bool CheckKnightMove(int startTile, int endTile) const;
 	bool CheckRookMove(int startTile, int endTile) const;
 	bool CheckPawnMove(int startTile, int endTile);
-
-	bool KnightMovesRight(int startTile, int endTile) const;
-	bool KnightMovesLeft(int startTile, int endTile) const;
 
 	void HandleEnPassant();
 	int lastEnPassantIndex;

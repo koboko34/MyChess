@@ -48,6 +48,7 @@ void Board::Init(unsigned int width, unsigned int height)
 
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 
+	PrepEdges();
 	CalculateEdges();
 }
 
@@ -304,9 +305,23 @@ void Board::RenderPieces()
 	glBindVertexArray(0);
 }
 
-bool Board::TileInArray(int target, const int arr[]) const
+bool Board::TileInArray(int target, std::vector<int> arr) const
 {
-	return std::find(arr, arr + 8, target) != arr + 8;
+	return std::find(arr.begin(), arr.end(), target) != arr.end();
+}
+
+void Board::PrepEdges()
+{
+	firstRank = { 56, 57, 58, 59, 60, 61, 62, 63 };
+	eighthRank = { 0, 1, 2, 3, 4, 5, 6, 7 };
+	aFile = { 0, 8, 16, 24, 32, 40, 48, 56 };
+	bFile = { 1, 9, 17, 25, 33, 41, 49, 57 };
+	gFile = { 6, 14, 22, 30, 38, 46, 54, 62 };
+	hFile ={ 7, 15, 23, 31, 39, 47, 55, 63 };
+	topLeft = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56 };
+	topRight = { 0, 1, 2, 3, 4, 5, 6, 7, 15, 23, 31, 39, 47, 55, 63 };
+	bottomLeft = { 0, 8, 16, 24, 32, 40, 48, 56, 57, 58, 59, 60, 61, 62, 63 };
+	bottomRight = { 7, 15, 23, 31, 39, 47, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
 }
 
 void Board::CalculateEdges()
@@ -326,35 +341,35 @@ void Board::CalculateEdges()
 		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
 
 		temp = i;
-		while (!TileInArray(temp, eighthRank) && !TileInArray(temp, hFile))
+		while (!TileInArray(temp, topRight))
 		{
 			temp -= 7;
 		}
 		edgesFromTiles[i].topRight = temp;
 
 		temp = i;
-		while (!TileInArray(temp, eighthRank) && !TileInArray(temp, aFile))
+		while (!TileInArray(temp, topLeft))
 		{
 			temp -= 9;
 		}
 		edgesFromTiles[i].topLeft = temp;
 
 		temp = i;
-		while (!TileInArray(temp, firstRank) && !TileInArray(temp, aFile))
+		while (!TileInArray(temp, bottomLeft))
 		{
 			temp += 7;
 		}
 		edgesFromTiles[i].bottomLeft = temp;
 
 		temp = i;
-		while (!TileInArray(temp, firstRank) && !TileInArray(temp, hFile))
+		while (!TileInArray(temp, bottomRight))
 		{
 			temp += 9;
 		}
 		edgesFromTiles[i].bottomRight = temp;
 
-		// printf("%i\n", i);
-		// edgesFromTiles[i].Print();
+		printf("%i\n", i);
+		edgesFromTiles[i].Print();
 	}
 }
 
@@ -446,6 +461,51 @@ bool Board::CheckQueenMove(int startTile, int endTile) const
 bool Board::CheckBishopMove(int startTile, int endTile) const
 {
 	// check using pre-calculated edges
+	int target;
+	if (startTile < endTile)
+	{
+		target = startTile;
+		while (!TileInArray(target, bottomLeft))
+		{
+			target += 7;
+			if (target == endTile)
+			{
+				return true;
+			}
+		}
+
+		target = startTile;
+		while (!TileInArray(target, bottomRight))
+		{
+			target += 9;
+			if (target == endTile)
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		target = startTile; 
+		while (!TileInArray(target, topLeft))
+		{
+			target -= 9;
+			if (target == endTile)
+			{
+				return true;
+			}
+		}
+
+		target = startTile; 
+		while (!TileInArray(target, topRight))
+		{
+			target -= 7;
+			if (target == endTile)
+			{
+				return true;
+			}
+		}
+	}
 	
 	return false;
 }
