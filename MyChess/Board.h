@@ -81,7 +81,7 @@ private:
 	int aFile[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
 	int hFile[8] = { 7, 15, 23, 31, 39, 47, 55, 63 };
 
-	bool TileInArray(int target, int arr[]);
+	bool TileInArray(int target, const int arr[]) const;
 
 	struct EdgesFromTile
 	{

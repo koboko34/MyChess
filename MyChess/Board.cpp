@@ -304,7 +304,7 @@ void Board::RenderPieces()
 	glBindVertexArray(0);
 }
 
-bool Board::TileInArray(int target, int arr[])
+bool Board::TileInArray(int target, const int arr[]) const
 {
 	return std::find(arr, arr + 8, target) != arr + 8;
 }
@@ -353,8 +353,8 @@ void Board::CalculateEdges()
 		}
 		edgesFromTiles[i].bottomRight = temp;
 
-		printf("%i\n", i);
-		edgesFromTiles[i].Print();
+		// printf("%i\n", i);
+		// edgesFromTiles[i].Print();
 	}
 }
 
@@ -387,7 +387,7 @@ bool Board::CheckKingMove(int startTile, int endTile) const
 	}
 
 	// if on A file
-	if (startTile % 8 == 0)
+	if (TileInArray(startTile, aFile))
 	{
 		// only look for +1 to prevent jump across board
 		if (endTile == startTile + 1)
@@ -405,7 +405,7 @@ bool Board::CheckKingMove(int startTile, int endTile) const
 	}
 
 	// if on H file
-	if (startTile % 8 == 7)
+	if (TileInArray(startTile, hFile))
 	{
 		// only look for -1 to prevent jumps across board
 		if (endTile == startTile - 1)
