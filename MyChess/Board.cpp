@@ -452,6 +452,224 @@ bool Board::CheckBishopMove(int startTile, int endTile) const
 
 bool Board::CheckKnightMove(int startTile, int endTile) const
 {
+	int target;
+
+	if (TileInArray(startTile, aFile))
+	{
+		// up up right
+		target = startTile - 2 * 8 + 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// right right up
+		target = startTile - 8 + 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// right right down
+		target = startTile + 8 + 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// down down right
+		target = startTile + 2 * 8 + 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if (TileInArray(startTile, bFile))
+	{
+		// up up left
+		target = startTile - 2 * 8 - 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+		
+		// up up right
+		target = startTile - 2 * 8 + 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// right right up
+		target = startTile - 8 + 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// right right down
+		target = startTile + 8 + 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// down down right
+		target = startTile + 2 * 8 + 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// down down left
+		target = startTile + 2 * 8 - 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if (TileInArray(startTile, hFile))
+	{
+		// up up left
+		target = startTile - 2 * 8 - 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// left left up
+		target = startTile - 8 - 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// left left down
+		target = startTile + 8 - 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// down down left
+		target = startTile + 2 * 8 - 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if (TileInArray(startTile, gFile))
+	{
+		// up up right
+		target = startTile - 2 * 8 + 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// up up left
+		target = startTile - 2 * 8 - 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// left left up
+		target = startTile - 8 - 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// left left down
+		target = startTile + 8 - 2;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// down down left
+		target = startTile + 2 * 8 - 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		// down down right
+		target = startTile + 2 * 8 + 1;
+		if (endTile == target)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	// up up right
+	target = startTile - 2 * 8 + 1;
+	if (endTile == target)
+	{
+		return true;
+	}
+
+	// right right up
+	target = startTile - 8 + 2;
+	if (endTile == target)
+	{
+		return true;
+	}
+
+	// right right down
+	target = startTile + 8 + 2;
+	if (endTile == target)
+	{
+		return true;
+	}
+
+	// down down right
+	target = startTile + 2 * 8 + 1;
+	if (endTile == target)
+	{
+		return true;
+	}
+
+	// up up left
+	target = startTile - 2 * 8 - 1;
+	if (endTile == target)
+	{
+		return true;
+	}
+
+	// left left up
+	target = startTile - 8 - 2;
+	if (endTile == target)
+	{
+		return true;
+	}
+
+	// left left down
+	target = startTile + 8 - 2;
+	if (endTile == target)
+	{
+		return true;
+	}
+
+	// down down left
+	target = startTile + 2 * 8 - 1;
+	if (endTile == target)
+	{
+		return true;
+	}
+	
 	return false;
 }
 

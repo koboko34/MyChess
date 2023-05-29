@@ -79,6 +79,8 @@ private:
 	int firstRank[8] = { 56, 57, 58, 59, 60, 61, 62, 63 };
 	int eighthRank[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 	int aFile[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
+	int bFile[8] = { 1, 9, 17, 25, 33, 41, 49, 57 };
+	int gFile[8] = { 6, 14, 22, 30, 38, 46, 54, 62 };
 	int hFile[8] = { 7, 15, 23, 31, 39, 47, 55, 63 };
 
 	bool TileInArray(int target, const int arr[]) const;
@@ -109,6 +111,9 @@ private:
 	bool CheckKnightMove(int startTile, int endTile) const;
 	bool CheckRookMove(int startTile, int endTile) const;
 	bool CheckPawnMove(int startTile, int endTile);
+
+	bool KnightMovesRight(int startTile, int endTile) const;
+	bool KnightMovesLeft(int startTile, int endTile) const;
 
 	void HandleEnPassant();
 	int lastEnPassantIndex;
