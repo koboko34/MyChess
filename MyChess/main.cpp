@@ -46,26 +46,30 @@ int main()
 			glClearColor(0.0f, 0.0f, 0.0f, 1.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			board.PickingPass();
-			
-			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
-			pickingTexture.DisableWriting();
+			if (!board.IsGameOver())
+			{
+				board.PickingPass();
 
-			// pixel.Print();
+				pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
+				pickingTexture.DisableWriting();
 
-			if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
-			{
-				clickedObjectId = pixel.objectId - 1;
+				// pixel.Print();
+
+				if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
+				{
+					clickedObjectId = pixel.objectId - 1;
+				}
+				else if (clickedObjectId == pixel.objectId - 1)
+				{
+					clickedObjectId = -1;
+				}
+				else
+				{
+					board.MovePiece(clickedObjectId, pixel.objectId - 1);
+					clickedObjectId = -1;
+				}
 			}
-			else if (clickedObjectId == pixel.objectId - 1)
-			{
-				clickedObjectId = -1;
-			}
-			else
-			{
-				board.MovePiece(clickedObjectId, pixel.objectId - 1);
-				clickedObjectId = -1;
-			}
+
 
 			// printf("clickedObjectId = %i\n", clickedObjectId);
 

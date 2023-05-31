@@ -32,6 +32,8 @@ public:
 
 	bool PieceExists(int index);
 
+	bool IsGameOver() { return bGameOver; }
+
 private:
 
 	void SetupBoard(glm::mat4 view, glm::mat4 projection);
@@ -75,7 +77,7 @@ private:
 
 	PieceTeam currentTurn;
 	bool IsCurrentTurn(int index) const { return pieces[index]->GetTeam() == currentTurn; }
-	void CompleteTurn() { currentTurn = currentTurn == WHITE ? BLACK : WHITE; }
+	void CompleteTurn();
 
 	std::vector<int> firstRank;
 	std::vector<int> eighthRank;
@@ -111,15 +113,30 @@ private:
 	void CalculateEdges();
 
 	bool CheckLegalMove(int startTile, int endTile);
+
 	bool CheckKingMove(int startTile, int endTile) const;
 	bool CheckQueenMove(int startTile, int endTile) const;
 	bool CheckBishopMove(int startTile, int endTile) const;
 	bool CheckKnightMove(int startTile, int endTile) const;
-	bool CheckRookMove(int startTile, int endTile) const;
+	void CalcRookMoves(int startTile);
 	bool CheckPawnMove(int startTile, int endTile);
 
 	void HandleEnPassant();
 	int lastEnPassantIndex;
+
+	std::vector<int> attackMapWhite[64];
+	std::vector<int> attackMapBlack[64];
+	void CalculateMoves();
+
+	bool bInCheckWhite;
+	bool bInCheckBlack;
+
+	// calculate pinned pieces
+
+	void GameOver(int winningTeam);
+
+	bool bGameOver;
+	int winner;
 
 };
 

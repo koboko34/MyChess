@@ -5,6 +5,11 @@ Board::Board()
 	VAO, EBO, VBO = 0;
 	currentTurn = WHITE;
 	lastEnPassantIndex = -1;
+
+	bInCheckBlack = false;
+	bInCheckWhite = false;
+	bGameOver = false;
+	winner = 0;
 }
 
 Board::~Board()
@@ -50,6 +55,7 @@ void Board::Init(unsigned int width, unsigned int height)
 
 	PrepEdges();
 	CalculateEdges();
+	CalculateMoves();
 }
 
 void Board::DrawBoard(int selectedObjectId)
@@ -210,6 +216,11 @@ bool Board::MovePiece(int startTile, int endTile)
 	}
 
 
+
+	// check if move puts self in check
+
+
+
 	// checks complete
 	if (pieces[endTile])
 	{
@@ -240,6 +251,11 @@ bool Board::PieceExists(int index)
 
 void Board::RenderTiles(int selectedObjectId)
 {
+	//int team = 0;
+	//if (selectedObjectId != -1)
+	//{
+	//	team = pieces[selectedObjectId]->GetTeam();
+	//}
 	glBindVertexArray(VAO);
 
 	for (size_t rank = 8; rank >= 1; rank--)
@@ -256,7 +272,7 @@ void Board::RenderTiles(int selectedObjectId)
 			}
 
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
-			if (selectedObjectId == objectId && pieces[objectId] != nullptr)
+			if ((selectedObjectId == objectId && pieces[objectId] != nullptr) || TileInArray(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapWhite[selectedObjectId]))
 			{
 				glUniform1i(tileColorModLocation, 0);
 			}
@@ -303,6 +319,12 @@ void Board::RenderPieces()
 	}
 
 	glBindVertexArray(0);
+}
+
+void Board::CompleteTurn()
+{
+	CalculateMoves();
+	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
 }
 
 bool Board::TileInArray(int target, std::vector<int> arr) const
@@ -368,13 +390,19 @@ void Board::CalculateEdges()
 		}
 		edgesFromTiles[i].bottomRight = temp;
 
-		printf("%i\n", i);
-		edgesFromTiles[i].Print();
+		// printf("%i\n", i);
+		// edgesFromTiles[i].Print();
 	}
 }
 
 bool Board::CheckLegalMove(int startTile, int endTile)
 {
+	if (pieces[startTile]->GetType() == ROOK)
+	{
+		return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
+
+	}
+	
 	switch (pieces[startTile]->GetType())
 	{
 		case KING:
@@ -385,8 +413,6 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 			return CheckBishopMove(startTile, endTile);
 		case KNIGHT:
 			return CheckKnightMove(startTile, endTile);
-		case ROOK:
-			return CheckRookMove(startTile, endTile);
 		case PAWN:
 			return CheckPawnMove(startTile, endTile);
 	}
@@ -455,7 +481,7 @@ bool Board::CheckKingMove(int startTile, int endTile) const
 
 bool Board::CheckQueenMove(int startTile, int endTile) const
 {
-	return CheckRookMove(startTile, endTile) || CheckBishopMove(startTile, endTile);
+	return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]) || CheckBishopMove(startTile, endTile);
 }
 
 bool Board::CheckBishopMove(int startTile, int endTile) const
@@ -733,65 +759,104 @@ bool Board::CheckKnightMove(int startTile, int endTile) const
 	return false;
 }
 
-bool Board::CheckRookMove(int startTile, int endTile) const
+void Board::CalcRookMoves(int startTile)
 {
-	int dir = startTile < endTile ? 1 : -1;
+	std::vector<int> attackingPieces;
+	
+	int dir = 1;
 	int target = startTile + 8 * dir;
 
 	int top = edgesFromTiles[startTile].top;
 	int bottom = edgesFromTiles[startTile].bottom;
 
-	// forward and backwards
-	while (top <= target && target <= bottom)
+	// down
+	while (top <= target && target < bottom)
 	{
 		// if blocked by own team's piece
-		if (pieces[target] && IsCurrentTurn(target))
+		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
 		{
 			break;
 		}
 
-		// if blocked by enemy before reaching endTile
-		if (pieces[target] && !IsCurrentTurn(target) && endTile != target)
+		// if blocked by enemy
+		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
 		{
+			attackingPieces.push_back(target);
 			break;
 		}
-		
-		if (endTile == target)
-		{
-			return true;
-		}
 
+		attackingPieces.push_back(target);
 		target += 8 * dir;
+	}
+
+	// up
+	target = startTile - 8 * dir;
+	while (top < target && target <= bottom)
+	{
+		// if blocked by own team's piece
+		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		{
+			break;
+		}
+
+		// if blocked by enemy
+		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		{
+			attackingPieces.push_back(target);
+		}
+
+		target -= 8 * dir;
 	}
 
 	target = startTile + 1 * dir;
 	int left = edgesFromTiles[startTile].left;
 	int right = edgesFromTiles[startTile].right;
 
-	// lateral movement
-	while (left <= target && target <= right)
+	// right
+	while (left <= target && target < right)
 	{
 		// if blocked by own team's piece
-		if (pieces[target] && IsCurrentTurn(target))
+		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
 		{
 			break;
 		}
 
 		// if blocked by enemy before reaching endTile
-		if (pieces[target] && !IsCurrentTurn(target) && endTile != target)
+		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
 		{
-			break;
-		}
-
-		if (endTile == target)
-		{
-			return true;
+			attackingPieces.push_back(target);
 		}
 
 		target += 1 * dir;
 	}
+
+	// left
+	target = startTile - 1 * dir;
+	while (left < target && target <= right)
+	{
+		// if blocked by own team's piece
+		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		{
+			break;
+		}
+
+		// if blocked by enemy
+		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		{
+			attackingPieces.push_back(target);
+		}
+
+		target -= 1 * dir;
+	}
 	
-	return false;
+	if (pieces[startTile]->GetTeam() == WHITE)
+	{
+		attackMapWhite[startTile] = attackingPieces;
+	}
+	else
+	{
+		attackMapBlack[startTile] = attackingPieces;
+	}
 }
 
 bool Board::CheckPawnMove(int startTile, int endTile)
@@ -840,6 +905,45 @@ void Board::HandleEnPassant()
 		}
 	}
 	lastEnPassantIndex = -1;
+}
+
+void Board::CalculateMoves()
+{
+	for (size_t i = 0; i < 64; i++)
+	{
+		attackMapWhite[i].clear();
+		attackMapBlack[i].clear();
+		
+		if (pieces[i] == nullptr)
+		{
+			continue;
+		}
+		
+		switch (pieces[i]->GetType())
+		{
+		case ROOK:
+			CalcRookMoves(i);
+
+			printf("(WHITE) Rook at %i: ", i);
+			for (int j : attackMapWhite[i])
+			{
+				printf("%i, ", j);
+			}
+			printf("\n");
+			printf("(BLACK) Rook at %i: ", i);
+			for (int k : attackMapWhite[i])
+			{
+				printf("%i, ", k);
+			}
+			printf("\n");
+		}
+	}
+}
+
+void Board::GameOver(int winningTeam)
+{
+	winner = winningTeam;
+	bGameOver = true;
 }
 
 void Board::SetupBoardFromFEN(std::string fen)

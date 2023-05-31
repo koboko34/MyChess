@@ -16,8 +16,9 @@ enum PieceType
 
 enum PieceTeam
 {
-	WHITE = 0,
-	BLACK = 1
+	NONE = 0,
+	WHITE = 1,
+	BLACK = 2
 };
 
 #endif
