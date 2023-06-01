@@ -256,11 +256,6 @@ bool Board::PieceExists(int index)
 
 void Board::RenderTiles(int selectedObjectId)
 {
-	//int team = 0;
-	//if (selectedObjectId != -1)
-	//{
-	//	team = pieces[selectedObjectId]->GetTeam();
-	//}
 	glBindVertexArray(VAO);
 
 	for (size_t rank = 8; rank >= 1; rank--)
@@ -401,23 +396,19 @@ void Board::CalculateEdges()
 }
 
 bool Board::CheckLegalMove(int startTile, int endTile)
-{
-	if (pieces[startTile]->GetType() == ROOK)
-	{
-		return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
-
-	}
-	
+{	
 	switch (pieces[startTile]->GetType())
 	{
 		case KING:
 			return CheckKingMove(startTile, endTile);
 		case QUEEN:
-			return CheckQueenMove(startTile, endTile);
+			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case BISHOP:
-			return CheckBishopMove(startTile, endTile);
+			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case KNIGHT:
 			return CheckKnightMove(startTile, endTile);
+		case ROOK:
+			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case PAWN:
 			return CheckPawnMove(startTile, endTile);
 	}
@@ -484,61 +475,146 @@ bool Board::CheckKingMove(int startTile, int endTile) const
 	return false;
 }
 
-bool Board::CheckQueenMove(int startTile, int endTile) const
+void Board::CalcQueenMoves(int startTile)
 {
-	return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]) || CheckBishopMove(startTile, endTile);
+	CalcRookMoves(startTile);
+	CalcBishopMoves(startTile);
 }
 
-bool Board::CheckBishopMove(int startTile, int endTile) const
+void Board::CalcBishopMoves(int startTile)
 {
-	// check using pre-calculated edges
-	int target;
-	if (startTile < endTile)
+	std::vector<int> attackingPieces;
+
+	int target = startTile - 9;
+
+	int topLeft = edgesFromTiles[startTile].topLeft;
+	int topRight = edgesFromTiles[startTile].topRight;
+	int bottomLeft = edgesFromTiles[startTile].bottomLeft;
+	int bottomRight = edgesFromTiles[startTile].bottomRight;
+
+	// top left
+	while (topLeft <= target && target <= bottomRight)
 	{
-		target = startTile;
-		while (!TileInArray(target, bottomLeft))
+		if (target == startTile)
 		{
-			target += 7;
-			if (target == endTile)
-			{
-				return true;
-			}
+			break;
 		}
 
-		target = startTile;
-		while (!TileInArray(target, bottomRight))
+		// if blocked by own team's piece
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
-			target += 9;
-			if (target == endTile)
-			{
-				return true;
-			}
+			break;
+		}
+
+		// if blocked by enemy
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		{
+			attackingPieces.push_back(target);
+			break;
+		}
+
+		attackingPieces.push_back(target);
+		target -= 9;
+	}
+	
+	target = startTile - 7;
+	// top right
+	while (topRight <= target && target <= bottomLeft)
+	{
+		if (target == startTile)
+		{
+			break;
+		}
+
+		// if blocked by own team's piece
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		{
+			break;
+		}
+
+		// if blocked by enemy
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		{
+			attackingPieces.push_back(target);
+			break;
+		}
+
+		attackingPieces.push_back(target);
+		target -= 7;
+	}
+	
+	target = startTile + 7;
+	// bottom left
+	while (topRight <= target && target <= bottomLeft)
+	{
+		if (target == startTile)
+		{
+			break;
+		}
+
+		// if blocked by own team's piece
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		{
+			break;
+		}
+
+		// if blocked by enemy
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		{
+			attackingPieces.push_back(target);
+			break;
+		}
+
+		attackingPieces.push_back(target);
+		target += 7;
+	}
+
+	target = startTile + 9;
+	// bottom right
+	while (topLeft <= target && target <= bottomRight)
+	{
+		if (target == startTile)
+		{
+			break;
+		}
+
+		// if blocked by own team's piece
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		{
+			break;
+		}
+
+		// if blocked by enemy
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		{
+			attackingPieces.push_back(target);
+			break;
+		}
+
+		attackingPieces.push_back(target);
+		target += 9;
+	}
+	
+	if (attackingPieces.empty())
+	{
+		return;
+	}
+
+	if (pieces[startTile]->GetTeam() == WHITE)
+	{
+		for (int i : attackingPieces)
+		{
+			attackMapWhite[startTile].push_back(i);
 		}
 	}
 	else
 	{
-		target = startTile; 
-		while (!TileInArray(target, topLeft))
+		for (int i : attackingPieces)
 		{
-			target -= 9;
-			if (target == endTile)
-			{
-				return true;
-			}
-		}
-
-		target = startTile; 
-		while (!TileInArray(target, topRight))
-		{
-			target -= 7;
-			if (target == endTile)
-			{
-				return true;
-			}
+			attackMapBlack[startTile].push_back(i);
 		}
 	}
 	
-	return false;
 }
 
 bool Board::CheckKnightMove(int startTile, int endTile) const
@@ -880,13 +956,24 @@ void Board::CalcRookMoves(int startTile)
 		target -= 1 * dir;
 	}
 	
+	if (attackingPieces.empty())
+	{
+		return;
+	}
+
 	if (pieces[startTile]->GetTeam() == WHITE)
 	{
-		attackMapWhite[startTile] = attackingPieces;
+		for (int i : attackingPieces)
+		{
+			attackMapWhite[startTile].push_back(i);
+		}
 	}
 	else
 	{
-		attackMapBlack[startTile] = attackingPieces;
+		for (int i : attackingPieces)
+		{
+			attackMapBlack[startTile].push_back(i);
+		}
 	}
 }
 
@@ -952,22 +1039,15 @@ void Board::CalculateMoves()
 		
 		switch (pieces[i]->GetType())
 		{
+		case QUEEN:
+			CalcQueenMoves(i);
+			break;
+		case BISHOP:
+			CalcBishopMoves(i);
+			break;
 		case ROOK:
 			CalcRookMoves(i);
-			/*
-			printf("(WHITE) Rook at %i: ", i);
-			for (int j : attackMapWhite[i])
-			{
-				printf("%i, ", j);
-			}
-			printf("\n");
-			printf("(BLACK) Rook at %i: ", i);
-			for (int k : attackMapWhite[i])
-			{
-				printf("%i, ", k);
-			}
-			printf("\n");
-			*/
+			break;
 		}
 	}
 }

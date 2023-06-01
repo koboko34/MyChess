@@ -115,8 +115,8 @@ private:
 	bool CheckLegalMove(int startTile, int endTile);
 
 	bool CheckKingMove(int startTile, int endTile) const;
-	bool CheckQueenMove(int startTile, int endTile) const;
-	bool CheckBishopMove(int startTile, int endTile) const;
+	void CalcQueenMoves(int startTile);
+	void CalcBishopMoves(int startTile);
 	bool CheckKnightMove(int startTile, int endTile) const;
 	void CalcRookMoves(int startTile);
 	bool CheckPawnMove(int startTile, int endTile);
