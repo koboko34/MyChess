@@ -195,6 +195,11 @@ bool Board::MovePiece(int startTile, int endTile)
 	
 	if (pieces[startTile] == nullptr)
 		return false;
+
+	if (endTile < 0 || endTile > 63)
+	{
+		return false;
+	}
 	
 	if (!IsCurrentTurn(startTile))
 	{
@@ -272,7 +277,7 @@ void Board::RenderTiles(int selectedObjectId)
 			}
 
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
-			if ((selectedObjectId == objectId && pieces[objectId] != nullptr) || TileInArray(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapWhite[selectedObjectId]))
+			if ((selectedObjectId == objectId && pieces[objectId] != nullptr) || TileInArray(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId]))
 			{
 				glUniform1i(tileColorModLocation, 0);
 			}
@@ -770,16 +775,21 @@ void Board::CalcRookMoves(int startTile)
 	int bottom = edgesFromTiles[startTile].bottom;
 
 	// down
-	while (top <= target && target < bottom)
+	while (top <= target && target <= bottom)
 	{
+		if (target == startTile)
+		{
+			break;
+		}
+
 		// if blocked by own team's piece
-		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			attackingPieces.push_back(target);
 			break;
@@ -791,20 +801,27 @@ void Board::CalcRookMoves(int startTile)
 
 	// up
 	target = startTile - 8 * dir;
-	while (top < target && target <= bottom)
+	while (top <= target && target <= bottom)
 	{
+		if (target == startTile)
+		{
+			break;
+		}
+		
 		// if blocked by own team's piece
-		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			attackingPieces.push_back(target);
+			break;
 		}
 
+		attackingPieces.push_back(target);
 		target -= 8 * dir;
 	}
 
@@ -813,39 +830,53 @@ void Board::CalcRookMoves(int startTile)
 	int right = edgesFromTiles[startTile].right;
 
 	// right
-	while (left <= target && target < right)
+	while (left <= target && target <= right)
 	{
+		if (target == startTile)
+		{
+			break;
+		}
+		
 		// if blocked by own team's piece
-		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			break;
 		}
 
 		// if blocked by enemy before reaching endTile
-		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			attackingPieces.push_back(target);
+			break;
 		}
 
+		attackingPieces.push_back(target);
 		target += 1 * dir;
 	}
 
 	// left
 	target = startTile - 1 * dir;
-	while (left < target && target <= right)
+	while (left <= target && target <= right)
 	{
+		if (target == startTile)
+		{
+			break;
+		}
+		
 		// if blocked by own team's piece
-		if (pieces[target] && IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && !IsCurrentTurn(target) && pieces[target]->GetType() != EN_PASSANT)
+		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
 		{
 			attackingPieces.push_back(target);
+			break;
 		}
 
+		attackingPieces.push_back(target);
 		target -= 1 * dir;
 	}
 	
@@ -923,7 +954,7 @@ void Board::CalculateMoves()
 		{
 		case ROOK:
 			CalcRookMoves(i);
-
+			/*
 			printf("(WHITE) Rook at %i: ", i);
 			for (int j : attackMapWhite[i])
 			{
@@ -936,6 +967,7 @@ void Board::CalculateMoves()
 				printf("%i, ", k);
 			}
 			printf("\n");
+			*/
 		}
 	}
 }
