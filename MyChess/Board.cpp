@@ -400,7 +400,7 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 	switch (pieces[startTile]->GetType())
 	{
 		case KING:
-			return CheckKingMove(startTile, endTile);
+			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case QUEEN:
 			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case BISHOP:
@@ -415,64 +415,140 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 	return false;
 }
 
-bool Board::CheckKingMove(int startTile, int endTile) const
+void Board::CalcKingMoves(int startTile)
 {
-	// if forward or backward
-	if (endTile == startTile + 8|| endTile == startTile - 8)
-	{
-		return true;
-	}
+	std::vector<int> attackingTiles;
+	int target = startTile + 8;
 
-	// if on A file
-	if (TileInArray(startTile, aFile))
+	int top = edgesFromTiles[startTile].top;
+	int bottom = edgesFromTiles[startTile].bottom;
+	int left = edgesFromTiles[startTile].left;
+	int right = edgesFromTiles[startTile].right;
+	int topLeft = edgesFromTiles[startTile].topLeft;
+	int topRight = edgesFromTiles[startTile].topRight;
+	int bottomLeft = edgesFromTiles[startTile].bottomLeft;
+	int bottomRight = edgesFromTiles[startTile].bottomRight;
+
+	// down
+	if (top <= target && target <= bottom)
 	{
-		// only look for +1 to prevent jump across board
-		if (endTile == startTile + 1)
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			return true;
+			attackingTiles.push_back(target);
 		}
-
-		// only look for +9 and -7 to prevent jump across board
-		if (endTile == startTile + 9 || endTile == startTile - 7)
+		else if (!BlockedByOwnPiece(startTile, target))
 		{
-			return true;
+			attackingTiles.push_back(target);
 		}
-		
-		return false;
 	}
 
-	// if on H file
-	if (TileInArray(startTile, hFile))
+	target = startTile - 8;
+	// up
+	if (top <= target && target <= bottom)
 	{
-		// only look for -1 to prevent jumps across board
-		if (endTile == startTile - 1)
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			return true;
+			attackingTiles.push_back(target);
 		}
-
-		// only look for +7 and -9 to prevent jumps across board
-		if (endTile == startTile + 7 || endTile == startTile - 9)
+		else if (!BlockedByOwnPiece(startTile, target))
 		{
-			return true;
+			attackingTiles.push_back(target);
 		}
-
-		return false;
 	}
-	
-	// if away from side walls, lateral
-	if (endTile == startTile + 1 || endTile == startTile - 1)
+
+	target = startTile - 1;
+	// left
+	if (left <= target && target <= right && startTile != left)
 	{
-		return true;
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+		else if (!BlockedByOwnPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
 	}
 
-	// if away from side walls, diagonal
-	if (endTile == startTile + 9 || endTile == startTile - 9 ||
-		endTile == startTile + 7 || endTile == startTile - 7)
+	target = startTile + 1;
+	// right
+	if (left <= target && target <= right && startTile != right)
 	{
-		return true;
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+		else if (!BlockedByOwnPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
 	}
 
-	return false;
+	target = startTile - 9;
+	// top left
+	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, aFile) && !TileInArray(startTile, eighthRank))
+	{
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+		else if (!BlockedByOwnPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+	}
+
+	target = startTile - 7;
+	// top right
+	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, hFile) && !TileInArray(startTile, eighthRank))
+	{
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+		else if (!BlockedByOwnPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+	}
+
+	target = startTile + 7;
+	// bottom left
+	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, aFile) && !TileInArray(startTile, firstRank))
+	{
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+		else if (!BlockedByOwnPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+	}
+
+	target = startTile + 9;
+	// bottom right
+	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, hFile) && !TileInArray(startTile, firstRank))
+	{
+		// if blocked by enemy
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+		else if (!BlockedByOwnPiece(startTile, target))
+		{
+			attackingTiles.push_back(target);
+		}
+	}
+
+	AddToMap(startTile, attackingTiles);
 }
 
 void Board::CalcQueenMoves(int startTile)
@@ -483,7 +559,7 @@ void Board::CalcQueenMoves(int startTile)
 
 void Board::CalcBishopMoves(int startTile)
 {
-	std::vector<int> attackingPieces;
+	std::vector<int> attackingTiles;
 
 	int target = startTile - 9;
 
@@ -495,25 +571,20 @@ void Board::CalcBishopMoves(int startTile)
 	// top left
 	while (topLeft <= target && target <= bottomRight)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target -= 9;
 	}
 	
@@ -521,25 +592,20 @@ void Board::CalcBishopMoves(int startTile)
 	// top right
 	while (topRight <= target && target <= bottomLeft)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target -= 7;
 	}
 	
@@ -547,25 +613,20 @@ void Board::CalcBishopMoves(int startTile)
 	// bottom left
 	while (topRight <= target && target <= bottomLeft)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target += 7;
 	}
 
@@ -573,47 +634,24 @@ void Board::CalcBishopMoves(int startTile)
 	// bottom right
 	while (topLeft <= target && target <= bottomRight)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target += 9;
 	}
 	
-	if (attackingPieces.empty())
-	{
-		return;
-	}
-
-	if (pieces[startTile]->GetTeam() == WHITE)
-	{
-		for (int i : attackingPieces)
-		{
-			attackMapWhite[startTile].push_back(i);
-		}
-	}
-	else
-	{
-		for (int i : attackingPieces)
-		{
-			attackMapBlack[startTile].push_back(i);
-		}
-	}
+	AddToMap(startTile, attackingTiles);
 	
 }
 
@@ -842,7 +880,7 @@ bool Board::CheckKnightMove(int startTile, int endTile) const
 
 void Board::CalcRookMoves(int startTile)
 {
-	std::vector<int> attackingPieces;
+	std::vector<int> attackingTiles;
 	
 	int dir = 1;
 	int target = startTile + 8 * dir;
@@ -853,25 +891,20 @@ void Board::CalcRookMoves(int startTile)
 	// down
 	while (top <= target && target <= bottom)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target += 8 * dir;
 	}
 
@@ -879,25 +912,20 @@ void Board::CalcRookMoves(int startTile)
 	target = startTile - 8 * dir;
 	while (top <= target && target <= bottom)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-		
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target -= 8 * dir;
 	}
 
@@ -908,25 +936,20 @@ void Board::CalcRookMoves(int startTile)
 	// right
 	while (left <= target && target <= right)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-		
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy before reaching endTile
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target += 1 * dir;
 	}
 
@@ -934,47 +957,24 @@ void Board::CalcRookMoves(int startTile)
 	target = startTile - 1 * dir;
 	while (left <= target && target <= right)
 	{
-		if (target == startTile)
-		{
-			break;
-		}
-		
 		// if blocked by own team's piece
-		if (pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByOwnPiece(startTile, target))
 		{
 			break;
 		}
 
 		// if blocked by enemy
-		if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT)
+		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingPieces.push_back(target);
+			attackingTiles.push_back(target);
 			break;
 		}
 
-		attackingPieces.push_back(target);
+		attackingTiles.push_back(target);
 		target -= 1 * dir;
 	}
 	
-	if (attackingPieces.empty())
-	{
-		return;
-	}
-
-	if (pieces[startTile]->GetTeam() == WHITE)
-	{
-		for (int i : attackingPieces)
-		{
-			attackMapWhite[startTile].push_back(i);
-		}
-	}
-	else
-	{
-		for (int i : attackingPieces)
-		{
-			attackMapBlack[startTile].push_back(i);
-		}
-	}
+	AddToMap(startTile, attackingTiles);
 }
 
 bool Board::CheckPawnMove(int startTile, int endTile)
@@ -1012,6 +1012,16 @@ bool Board::CheckPawnMove(int startTile, int endTile)
 	return false;
 }
 
+bool Board::BlockedByOwnPiece(int startTile, int target) const
+{
+	return pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
+}
+
+bool Board::BlockedByEnemyPiece(int startTile, int target) const
+{
+	return pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
+}
+
 void Board::HandleEnPassant()
 {
 	for (size_t i = 0; i < 64; i++)
@@ -1039,6 +1049,9 @@ void Board::CalculateMoves()
 		
 		switch (pieces[i]->GetType())
 		{
+		case KING:
+			CalcKingMoves(i);
+			break;
 		case QUEEN:
 			CalcQueenMoves(i);
 			break;
@@ -1048,6 +1061,29 @@ void Board::CalculateMoves()
 		case ROOK:
 			CalcRookMoves(i);
 			break;
+		}
+	}
+}
+
+void Board::AddToMap(int startTile, std::vector<int> validMoves)
+{
+	if (validMoves.empty())
+	{
+		return;
+	}
+
+	if (pieces[startTile]->GetTeam() == WHITE)
+	{
+		for (int i : validMoves)
+		{
+			attackMapWhite[startTile].push_back(i);
+		}
+	}
+	else
+	{
+		for (int i : validMoves)
+		{
+			attackMapBlack[startTile].push_back(i);
 		}
 	}
 }

@@ -114,12 +114,15 @@ private:
 
 	bool CheckLegalMove(int startTile, int endTile);
 
-	bool CheckKingMove(int startTile, int endTile) const;
+	void CalcKingMoves(int startTile);
 	void CalcQueenMoves(int startTile);
 	void CalcBishopMoves(int startTile);
 	bool CheckKnightMove(int startTile, int endTile) const;
 	void CalcRookMoves(int startTile);
 	bool CheckPawnMove(int startTile, int endTile);
+
+	bool BlockedByOwnPiece(int startTile, int target) const;
+	bool BlockedByEnemyPiece(int startTile, int target) const;
 
 	void HandleEnPassant();
 	int lastEnPassantIndex;
@@ -127,6 +130,8 @@ private:
 	std::vector<int> attackMapWhite[64];
 	std::vector<int> attackMapBlack[64];
 	void CalculateMoves();
+
+	void AddToMap(int startTile, std::vector<int> validMoves);
 
 	bool bInCheckWhite;
 	bool bInCheckBlack;
