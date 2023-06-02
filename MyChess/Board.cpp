@@ -189,10 +189,78 @@ void Board::PickingPass()
 	glBindVertexArray(0);
 }
 
+void Board::RenderTiles(int selectedObjectId)
+{
+	glBindVertexArray(VAO);
+
+	for (size_t rank = 8; rank >= 1; rank--)
+	{
+		for (size_t file = 1; file <= 8; file++)
+		{
+			if ((rank % 2 == 0) != (file % 2 == 0))
+			{
+				glUniform3f(tileColorLocation, whiteTileColor.x, whiteTileColor.y, whiteTileColor.z);
+			}
+			else
+			{
+				glUniform3f(tileColorLocation, blackTileColor.x, blackTileColor.y, blackTileColor.z);
+			}
+
+			unsigned int objectId = (8 - rank) * 8 + file - 1;
+			if (0 <= selectedObjectId && selectedObjectId < 64 && ((selectedObjectId == objectId && pieces[objectId] != nullptr) ||
+				TileInArray(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])))
+			{
+				glUniform1i(tileColorModLocation, 0);
+			}
+			else
+			{
+				glUniform1i(tileColorModLocation, 1);
+			}
+
+			glm::mat4 tileModel = glm::mat4(1.f);
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, -2.f));
+			tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
+			glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		}
+	}
+
+	glBindVertexArray(0);
+}
+
+void Board::RenderPieces()
+{	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, piecesTextureId);
+	
+	for (size_t rank = 8; rank >= 1; rank--)
+	{
+		for (size_t file = 1; file <= 8; file++)
+		{
+			int objectId = (8 - rank) * 8 + file - 1;
+
+			if (pieces[objectId] == nullptr)
+			{
+				continue;
+			}
+
+			glm::mat4 pieceModel = glm::mat4(1.f);
+			pieceModel = glm::translate(pieceModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 0.f));
+			pieceModel = glm::scale(pieceModel, glm::vec3(tileSize, tileSize, 1.f));
+			glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
+
+			pieces[objectId]->DrawPiece();
+		}
+	}
+
+	glBindVertexArray(0);
+}
+
 bool Board::MovePiece(int startTile, int endTile)
 {
 	printf("Attempting to play a move...\n");
-	
+
 	if (pieces[startTile] == nullptr)
 		return false;
 
@@ -200,7 +268,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	{
 		return false;
 	}
-	
+
 	if (!IsCurrentTurn(startTile))
 	{
 		printf("It is %s's move!\n", currentTurn ? "black" : "white");
@@ -252,73 +320,6 @@ bool Board::PieceExists(int index)
 		return false;
 	}
 	return true;
-}
-
-void Board::RenderTiles(int selectedObjectId)
-{
-	glBindVertexArray(VAO);
-
-	for (size_t rank = 8; rank >= 1; rank--)
-	{
-		for (size_t file = 1; file <= 8; file++)
-		{
-			if ((rank % 2 == 0) != (file % 2 == 0))
-			{
-				glUniform3f(tileColorLocation, whiteTileColor.x, whiteTileColor.y, whiteTileColor.z);
-			}
-			else
-			{
-				glUniform3f(tileColorLocation, blackTileColor.x, blackTileColor.y, blackTileColor.z);
-			}
-
-			unsigned int objectId = (8 - rank) * 8 + file - 1;
-			if ((selectedObjectId == objectId && pieces[objectId] != nullptr) || TileInArray(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId]))
-			{
-				glUniform1i(tileColorModLocation, 0);
-			}
-			else
-			{
-				glUniform1i(tileColorModLocation, 1);
-			}
-
-			glm::mat4 tileModel = glm::mat4(1.f);
-			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, -2.f));
-			tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
-			glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
-
-			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		}
-	}
-
-	glBindVertexArray(0);
-}
-
-void Board::RenderPieces()
-{	
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, piecesTextureId);
-	
-	for (size_t rank = 8; rank >= 1; rank--)
-	{
-		for (size_t file = 1; file <= 8; file++)
-		{
-			int objectId = (8 - rank) * 8 + file - 1;
-
-			if (pieces[objectId] == nullptr)
-			{
-				continue;
-			}
-
-			glm::mat4 pieceModel = glm::mat4(1.f);
-			pieceModel = glm::translate(pieceModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 0.f));
-			pieceModel = glm::scale(pieceModel, glm::vec3(tileSize, tileSize, 1.f));
-			glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
-
-			pieces[objectId]->DrawPiece();
-		}
-	}
-
-	glBindVertexArray(0);
 }
 
 void Board::CompleteTurn()
@@ -406,7 +407,7 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 		case BISHOP:
 			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case KNIGHT:
-			return CheckKnightMove(startTile, endTile);
+			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case ROOK:
 			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 		case PAWN:
@@ -418,7 +419,6 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 void Board::CalcKingMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
-	int target = startTile + 8;
 
 	int top = edgesFromTiles[startTile].top;
 	int bottom = edgesFromTiles[startTile].bottom;
@@ -430,123 +430,44 @@ void Board::CalcKingMoves(int startTile)
 	int bottomRight = edgesFromTiles[startTile].bottomRight;
 
 	// down
-	if (top <= target && target <= bottom)
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
-
-	target = startTile - 8;
+	int target = startTile + 8;
+	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
+	
 	// up
-	if (top <= target && target <= bottom)
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
+	target = startTile - 8;
+	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
 
-	target = startTile - 1;
 	// left
-	if (left <= target && target <= right && startTile != left)
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
+	target = startTile - 1;
+	if (left <= target && target <= right && startTile != left && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
 
-	target = startTile + 1;
 	// right
-	if (left <= target && target <= right && startTile != right)
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
+	target = startTile + 1;
+	if (left <= target && target <= right && startTile != right && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
 
-	target = startTile - 9;
 	// top left
-	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, aFile) && !TileInArray(startTile, eighthRank))
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
+	target = startTile - 9;
+	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, aFile) && !TileInArray(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
 
-	target = startTile - 7;
 	// top right
-	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, hFile) && !TileInArray(startTile, eighthRank))
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
+	target = startTile - 7;
+	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, hFile) && !TileInArray(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
 
-	target = startTile + 7;
 	// bottom left
-	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, aFile) && !TileInArray(startTile, firstRank))
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
+	target = startTile + 7;
+	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, aFile) && !TileInArray(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
 
-	target = startTile + 9;
 	// bottom right
-	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, hFile) && !TileInArray(startTile, firstRank))
-	{
-		// if blocked by enemy
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-		else if (!BlockedByOwnPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
+	target = startTile + 9;
+	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, hFile) && !TileInArray(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
+		attackingTiles.push_back(target);
 
 	AddToMap(startTile, attackingTiles);
 }
@@ -569,15 +490,8 @@ void Board::CalcBishopMoves(int startTile)
 	int bottomRight = edgesFromTiles[startTile].bottomRight;
 
 	// top left
-	while (topLeft <= target && target <= bottomRight)
+	while (topLeft <= target && target <= bottomRight && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -590,15 +504,8 @@ void Board::CalcBishopMoves(int startTile)
 	
 	target = startTile - 7;
 	// top right
-	while (topRight <= target && target <= bottomLeft)
+	while (topRight <= target && target <= bottomLeft && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -611,15 +518,8 @@ void Board::CalcBishopMoves(int startTile)
 	
 	target = startTile + 7;
 	// bottom left
-	while (topRight <= target && target <= bottomLeft)
+	while (topRight <= target && target <= bottomLeft && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -632,15 +532,8 @@ void Board::CalcBishopMoves(int startTile)
 
 	target = startTile + 9;
 	// bottom right
-	while (topLeft <= target && target <= bottomRight)
+	while (topLeft <= target && target <= bottomRight && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -655,227 +548,135 @@ void Board::CalcBishopMoves(int startTile)
 	
 }
 
-bool Board::CheckKnightMove(int startTile, int endTile) const
+void Board::CalcKnightMoves(int startTile)
 {
+	std::vector<int> attackingTiles;
 	int target;
 
 	if (TileInArray(startTile, aFile))
 	{
 		// up up right
 		target = startTile - 2 * 8 + 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right up
 		target = startTile - 8 + 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right down
 		target = startTile + 8 + 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down right
 		target = startTile + 2 * 8 + 1;
-		if (endTile == target)
-		{
-			return true;
-		}
-
-		return false;
+		AddNotBlocked(startTile, target, attackingTiles);
 	}
-
-	if (TileInArray(startTile, bFile))
+	else if (TileInArray(startTile, bFile))
 	{
 		// up up left
 		target = startTile - 2 * 8 - 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 		
 		// up up right
 		target = startTile - 2 * 8 + 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right up
 		target = startTile - 8 + 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right down
 		target = startTile + 8 + 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down right
 		target = startTile + 2 * 8 + 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down left
 		target = startTile + 2 * 8 - 1;
-		if (endTile == target)
-		{
-			return true;
-		}
-
-		return false;
+		AddNotBlocked(startTile, target, attackingTiles);
 	}
-
-	if (TileInArray(startTile, hFile))
+	else if (TileInArray(startTile, hFile))
 	{
 		// up up left
 		target = startTile - 2 * 8 - 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left up
 		target = startTile - 8 - 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left down
 		target = startTile + 8 - 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down left
 		target = startTile + 2 * 8 - 1;
-		if (endTile == target)
-		{
-			return true;
-		}
-
-		return false;
+		AddNotBlocked(startTile, target, attackingTiles);
 	}
-
-	if (TileInArray(startTile, gFile))
+	else if (TileInArray(startTile, gFile))
 	{
 		// up up right
 		target = startTile - 2 * 8 + 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// up up left
 		target = startTile - 2 * 8 - 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left up
 		target = startTile - 8 - 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left down
 		target = startTile + 8 - 2;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down left
 		target = startTile + 2 * 8 - 1;
-		if (endTile == target)
-		{
-			return true;
-		}
+		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down right
 		target = startTile + 2 * 8 + 1;
-		if (endTile == target)
-		{
-			return true;
-		}
-
-		return false;
+		AddNotBlocked(startTile, target, attackingTiles);
 	}
-
-	// up up right
-	target = startTile - 2 * 8 + 1;
-	if (endTile == target)
+	else
 	{
-		return true;
+		// up up right
+		target = startTile - 2 * 8 + 1;
+		AddNotBlocked(startTile, target, attackingTiles);
+
+		// right right up
+		target = startTile - 8 + 2;
+		AddNotBlocked(startTile, target, attackingTiles);
+
+		// right right down
+		target = startTile + 8 + 2;
+		AddNotBlocked(startTile, target, attackingTiles);
+
+		// down down right
+		target = startTile + 2 * 8 + 1;
+		AddNotBlocked(startTile, target, attackingTiles);
+
+		// up up left
+		target = startTile - 2 * 8 - 1;
+		AddNotBlocked(startTile, target, attackingTiles);
+
+		// left left up
+		target = startTile - 8 - 2;
+		AddNotBlocked(startTile, target, attackingTiles);
+
+		// left left down
+		target = startTile + 8 - 2;
+		AddNotBlocked(startTile, target, attackingTiles);
+
+		// down down left
+		target = startTile + 2 * 8 - 1;
+		AddNotBlocked(startTile, target, attackingTiles);
 	}
 
-	// right right up
-	target = startTile - 8 + 2;
-	if (endTile == target)
-	{
-		return true;
-	}
-
-	// right right down
-	target = startTile + 8 + 2;
-	if (endTile == target)
-	{
-		return true;
-	}
-
-	// down down right
-	target = startTile + 2 * 8 + 1;
-	if (endTile == target)
-	{
-		return true;
-	}
-
-	// up up left
-	target = startTile - 2 * 8 - 1;
-	if (endTile == target)
-	{
-		return true;
-	}
-
-	// left left up
-	target = startTile - 8 - 2;
-	if (endTile == target)
-	{
-		return true;
-	}
-
-	// left left down
-	target = startTile + 8 - 2;
-	if (endTile == target)
-	{
-		return true;
-	}
-
-	// down down left
-	target = startTile + 2 * 8 - 1;
-	if (endTile == target)
-	{
-		return true;
-	}
-	
-	return false;
+	AddToMap(startTile, attackingTiles);
 }
 
 void Board::CalcRookMoves(int startTile)
@@ -889,15 +690,8 @@ void Board::CalcRookMoves(int startTile)
 	int bottom = edgesFromTiles[startTile].bottom;
 
 	// down
-	while (top <= target && target <= bottom)
+	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -910,15 +704,8 @@ void Board::CalcRookMoves(int startTile)
 
 	// up
 	target = startTile - 8 * dir;
-	while (top <= target && target <= bottom)
+	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -934,15 +721,8 @@ void Board::CalcRookMoves(int startTile)
 	int right = edgesFromTiles[startTile].right;
 
 	// right
-	while (left <= target && target <= right)
+	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy before reaching endTile
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -955,15 +735,8 @@ void Board::CalcRookMoves(int startTile)
 
 	// left
 	target = startTile - 1 * dir;
-	while (left <= target && target <= right)
+	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
 	{
-		// if blocked by own team's piece
-		if (BlockedByOwnPiece(startTile, target))
-		{
-			break;
-		}
-
-		// if blocked by enemy
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			attackingTiles.push_back(target);
@@ -1022,6 +795,14 @@ bool Board::BlockedByEnemyPiece(int startTile, int target) const
 	return pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
 }
 
+void Board::AddNotBlocked(int startTile, int target, std::vector<int>& validMoves)
+{
+	if (0 <= target && target < 64 && !BlockedByOwnPiece(startTile, target))
+	{
+		validMoves.push_back(target);
+	}
+}
+
 void Board::HandleEnPassant()
 {
 	for (size_t i = 0; i < 64; i++)
@@ -1057,6 +838,9 @@ void Board::CalculateMoves()
 			break;
 		case BISHOP:
 			CalcBishopMoves(i);
+			break;
+		case KNIGHT:
+			CalcKnightMoves(i);
 			break;
 		case ROOK:
 			CalcRookMoves(i);

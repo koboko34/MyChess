@@ -117,12 +117,14 @@ private:
 	void CalcKingMoves(int startTile);
 	void CalcQueenMoves(int startTile);
 	void CalcBishopMoves(int startTile);
-	bool CheckKnightMove(int startTile, int endTile) const;
+	void CalcKnightMoves(int startTile);
 	void CalcRookMoves(int startTile);
 	bool CheckPawnMove(int startTile, int endTile);
 
 	bool BlockedByOwnPiece(int startTile, int target) const;
 	bool BlockedByEnemyPiece(int startTile, int target) const;
+
+	void AddNotBlocked(int startTile, int target, std::vector<int>& validMoves);
 
 	void HandleEnPassant();
 	int lastEnPassantIndex;
