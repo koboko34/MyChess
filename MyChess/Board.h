@@ -119,7 +119,7 @@ private:
 	void CalcBishopMoves(int startTile);
 	void CalcKnightMoves(int startTile);
 	void CalcRookMoves(int startTile);
-	bool CheckPawnMove(int startTile, int endTile);
+	void CalcPawnMoves(int startTile);
 
 	bool BlockedByOwnPiece(int startTile, int target) const;
 	bool BlockedByEnemyPiece(int startTile, int target) const;
@@ -128,6 +128,7 @@ private:
 
 	void HandleEnPassant();
 	int lastEnPassantIndex;
+	Piece* enPassantOwner;
 
 	std::vector<int> attackMapWhite[64];
 	std::vector<int> attackMapBlack[64];

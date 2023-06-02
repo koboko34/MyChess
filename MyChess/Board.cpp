@@ -5,6 +5,7 @@ Board::Board()
 	VAO, EBO, VBO = 0;
 	currentTurn = WHITE;
 	lastEnPassantIndex = -1;
+	enPassantOwner = nullptr;
 
 	bInCheckBlack = false;
 	bInCheckWhite = false;
@@ -297,18 +298,42 @@ bool Board::MovePiece(int startTile, int endTile)
 	// checks complete
 	if (pieces[endTile])
 	{
+		if (pieces[endTile]->GetType() == EN_PASSANT)
+		{
+			// handle destruction of en passant piece when move is confirmed
+
+			for (size_t i = 0; i < 64; i++)
+			{
+				if (pieces[i] == enPassantOwner)
+				{
+					delete pieces[i];
+					pieces[i] = nullptr;
+					enPassantOwner = nullptr;
+					break;
+				}
+			}
+		}
+		
 		delete pieces[endTile];
-		// pieces[endTile] = nullptr;
 	}
+
 	pieces[endTile] = pieces[startTile];
 	pieces[startTile] = nullptr;
 
 	if (pieces[endTile]->GetType() == PAWN)
 	{
 		pieces[endTile]->bPawnMoved = true;
+
+		// handle creation of en passant piece when pawn moves by 2
+		int teamDir = pieces[endTile]->GetTeam() == WHITE ? -1 : 1;
+		if (startTile + 16 * teamDir == endTile)
+		{
+			pieces[startTile + 8 * teamDir] = new Piece(currentTurn, EN_PASSANT);
+			lastEnPassantIndex = startTile + 8 * teamDir;
+			enPassantOwner = pieces[endTile];
+		}
 	}
 
-	HandleEnPassant();
 	CompleteTurn();
 	return true;
 }
@@ -324,6 +349,7 @@ bool Board::PieceExists(int index)
 
 void Board::CompleteTurn()
 {
+	HandleEnPassant();
 	CalculateMoves();
 	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
 }
@@ -398,22 +424,7 @@ void Board::CalculateEdges()
 
 bool Board::CheckLegalMove(int startTile, int endTile)
 {	
-	switch (pieces[startTile]->GetType())
-	{
-		case KING:
-			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
-		case QUEEN:
-			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
-		case BISHOP:
-			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
-		case KNIGHT:
-			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
-		case ROOK:
-			return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
-		case PAWN:
-			return CheckPawnMove(startTile, endTile);
-	}
-	return false;
+	return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 }
 
 void Board::CalcKingMoves(int startTile)
@@ -750,39 +761,38 @@ void Board::CalcRookMoves(int startTile)
 	AddToMap(startTile, attackingTiles);
 }
 
-bool Board::CheckPawnMove(int startTile, int endTile)
+void Board::CalcPawnMoves(int startTile)
 {
 	// 4 cases, move forward by 1, move forward by 2 (only first move), take diagonal, take by en passant
-	
+	std::vector<int> attackingTiles;
 	int teamDir = pieces[startTile]->GetTeam() == WHITE ? -1 : 1;
+	int target;
 
 	// forward by 1
-	if (endTile == startTile + 8 * teamDir && pieces[endTile] == nullptr)
-	{
-		return true;
-	}
+	target = startTile + 8 * teamDir;
+	if (!BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target))
+		attackingTiles.push_back(target);
 
 	// forward by 2 if first move of this pawn
-	if (endTile == startTile + 16 * teamDir && pieces[endTile] == nullptr && pieces[endTile - 8 * teamDir] == nullptr && pieces[startTile]->bPawnMoved == false)
-	{
-		pieces[startTile + 8 * teamDir] = new Piece(pieces[startTile]->GetTeam(), EN_PASSANT);
-		lastEnPassantIndex = startTile + 8 * teamDir;
-		return true;
-	}
+	// handle creation of en passant piece when move is confirmed
+	target = startTile + 16 * teamDir;
+	if (!BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target) &&
+		!BlockedByOwnPiece(startTile, target - 8 * teamDir) && !BlockedByEnemyPiece(startTile, target - 8 * teamDir) && !pieces[startTile]->bPawnMoved)
+		attackingTiles.push_back(target);
 
-	// take on diagonal, en passant
-	if ((pieces[endTile]) && (endTile == startTile + 7 * teamDir || endTile == startTile + 9 * teamDir))
-	{
-		// handle en passant
-		if (pieces[endTile]->GetType() == EN_PASSANT)
-		{
-			delete pieces[endTile + 8 * -teamDir];
-			pieces[endTile + 8 * -teamDir] = nullptr;
-		}
-		return true;
-	}
+	// take on diagonal, local forward right
+	// handle destruction of en passant piece when move is confirmed
+	target = startTile + 7 * teamDir;
+	if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+		attackingTiles.push_back(target);
 
-	return false;
+	// take on diagonal, local forward left
+	// handle destruction of en passant piece when move is confirmed
+	target = startTile + 9 * teamDir;
+	if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+		attackingTiles.push_back(target);
+
+	AddToMap(startTile, attackingTiles);
 }
 
 bool Board::BlockedByOwnPiece(int startTile, int target) const
@@ -823,7 +833,7 @@ void Board::CalculateMoves()
 		attackMapWhite[i].clear();
 		attackMapBlack[i].clear();
 		
-		if (pieces[i] == nullptr)
+		if (pieces[i] == nullptr || pieces[i]->GetType() == EN_PASSANT)
 		{
 			continue;
 		}
@@ -844,6 +854,9 @@ void Board::CalculateMoves()
 			break;
 		case ROOK:
 			CalcRookMoves(i);
+			break;
+		case PAWN:
+			CalcPawnMoves(i);
 			break;
 		}
 	}
