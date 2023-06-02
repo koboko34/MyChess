@@ -59,6 +59,8 @@ void Board::Init(unsigned int width, unsigned int height)
 	CalculateMoves();
 }
 
+// ========================================== RENDERING ==========================================
+
 void Board::DrawBoard(int selectedObjectId)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -208,7 +210,7 @@ void Board::RenderTiles(int selectedObjectId)
 			}
 
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
-			if (0 <= selectedObjectId && selectedObjectId < 64 && ((selectedObjectId == objectId && pieces[objectId] != nullptr) ||
+			if (InMapRange(selectedObjectId) && ((selectedObjectId == objectId && pieces[objectId] != nullptr) ||
 				TileInArray(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])))
 			{
 				glUniform1i(tileColorModLocation, 0);
@@ -258,6 +260,8 @@ void Board::RenderPieces()
 	glBindVertexArray(0);
 }
 
+// ========================================== MOVE LOGIC ==========================================
+
 bool Board::MovePiece(int startTile, int endTile)
 {
 	printf("Attempting to play a move...\n");
@@ -298,128 +302,32 @@ bool Board::MovePiece(int startTile, int endTile)
 	// checks complete
 	if (pieces[endTile])
 	{
-		if (pieces[endTile]->GetType() == EN_PASSANT)
+		if (pieces[startTile]->GetType() == PAWN && pieces[endTile]->GetType() == EN_PASSANT)
 		{
-			// handle destruction of en passant piece when move is confirmed
-
-			for (size_t i = 0; i < 64; i++)
-			{
-				if (pieces[i] == enPassantOwner)
-				{
-					delete pieces[i];
-					pieces[i] = nullptr;
-					enPassantOwner = nullptr;
-					break;
-				}
-			}
+			// handle destruction of en passant piece owner when move is confirmed
+			TakeByEnPassant();
 		}
-		
 		delete pieces[endTile];
 	}
 
 	pieces[endTile] = pieces[startTile];
 	pieces[startTile] = nullptr;
+	pieces[endTile]->bMoved = true;
 
-	if (pieces[endTile]->GetType() == PAWN)
+	switch (pieces[endTile]->GetType())
 	{
-		pieces[endTile]->bPawnMoved = true;
-
-		// handle creation of en passant piece when pawn moves by 2
-		int teamDir = pieces[endTile]->GetTeam() == WHITE ? -1 : 1;
-		if (startTile + 16 * teamDir == endTile)
-		{
-			pieces[startTile + 8 * teamDir] = new Piece(currentTurn, EN_PASSANT);
-			lastEnPassantIndex = startTile + 8 * teamDir;
-			enPassantOwner = pieces[endTile];
-		}
+	case PAWN:
+		CreateEnPassant(startTile, endTile);
+		break;
+	case KING:
+		HandleCastling(startTile, endTile);
+		break;
+	default:
+		break;
 	}
 
 	CompleteTurn();
 	return true;
-}
-
-bool Board::PieceExists(int index)
-{
-	if (pieces[index] == nullptr)
-	{
-		return false;
-	}
-	return true;
-}
-
-void Board::CompleteTurn()
-{
-	HandleEnPassant();
-	CalculateMoves();
-	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
-}
-
-bool Board::TileInArray(int target, std::vector<int> arr) const
-{
-	return std::find(arr.begin(), arr.end(), target) != arr.end();
-}
-
-void Board::PrepEdges()
-{
-	firstRank = { 56, 57, 58, 59, 60, 61, 62, 63 };
-	eighthRank = { 0, 1, 2, 3, 4, 5, 6, 7 };
-	aFile = { 0, 8, 16, 24, 32, 40, 48, 56 };
-	bFile = { 1, 9, 17, 25, 33, 41, 49, 57 };
-	gFile = { 6, 14, 22, 30, 38, 46, 54, 62 };
-	hFile ={ 7, 15, 23, 31, 39, 47, 55, 63 };
-	topLeft = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56 };
-	topRight = { 0, 1, 2, 3, 4, 5, 6, 7, 15, 23, 31, 39, 47, 55, 63 };
-	bottomLeft = { 0, 8, 16, 24, 32, 40, 48, 56, 57, 58, 59, 60, 61, 62, 63 };
-	bottomRight = { 7, 15, 23, 31, 39, 47, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
-}
-
-void Board::CalculateEdges()
-{
-	int temp;
-
-	for (size_t i = 0; i < 64; i++)
-	{
-		temp = i % 8;
-
-		edgesFromTiles[i].left = i - temp;
-		edgesFromTiles[i].right = edgesFromTiles[i].left + 7;
-
-		temp = i / 8;
-
-		edgesFromTiles[i].top = i - (8 * temp);
-		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
-
-		temp = i;
-		while (!TileInArray(temp, topRight))
-		{
-			temp -= 7;
-		}
-		edgesFromTiles[i].topRight = temp;
-
-		temp = i;
-		while (!TileInArray(temp, topLeft))
-		{
-			temp -= 9;
-		}
-		edgesFromTiles[i].topLeft = temp;
-
-		temp = i;
-		while (!TileInArray(temp, bottomLeft))
-		{
-			temp += 7;
-		}
-		edgesFromTiles[i].bottomLeft = temp;
-
-		temp = i;
-		while (!TileInArray(temp, bottomRight))
-		{
-			temp += 9;
-		}
-		edgesFromTiles[i].bottomRight = temp;
-
-		// printf("%i\n", i);
-		// edgesFromTiles[i].Print();
-	}
 }
 
 bool Board::CheckLegalMove(int startTile, int endTile)
@@ -479,6 +387,25 @@ void Board::CalcKingMoves(int startTile)
 	target = startTile + 9;
 	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, hFile) && !TileInArray(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
+
+	if (pieces[startTile]->bMoved == false)
+	{
+		// castle left
+		target = startTile - 2;
+		int rookPos = target - 2;
+		if (CheckCanCastle(startTile, target, rookPos, -1))
+		{
+			attackingTiles.push_back(target);
+		}
+
+		// castle right
+		target = startTile + 2;
+		rookPos = target + 1;
+		if (CheckCanCastle(startTile, target, rookPos, 1))
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	AddToMap(startTile, attackingTiles);
 }
@@ -770,26 +697,26 @@ void Board::CalcPawnMoves(int startTile)
 
 	// forward by 1
 	target = startTile + 8 * teamDir;
-	if (!BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target))
+	if (InMapRange(target) && !BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// forward by 2 if first move of this pawn
 	// handle creation of en passant piece when move is confirmed
 	target = startTile + 16 * teamDir;
-	if (!BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target) &&
-		!BlockedByOwnPiece(startTile, target - 8 * teamDir) && !BlockedByEnemyPiece(startTile, target - 8 * teamDir) && !pieces[startTile]->bPawnMoved)
+	if (InMapRange(target) && !pieces[startTile]->bMoved && !BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target) &&
+		!BlockedByOwnPiece(startTile, target - 8 * teamDir) && !BlockedByEnemyPiece(startTile, target - 8 * teamDir))
 		attackingTiles.push_back(target);
 
 	// take on diagonal, local forward right
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + 7 * teamDir;
-	if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+	if (InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 		attackingTiles.push_back(target);
 
 	// take on diagonal, local forward left
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + 9 * teamDir;
-	if (pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+	if (InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 		attackingTiles.push_back(target);
 
 	AddToMap(startTile, attackingTiles);
@@ -805,15 +732,136 @@ bool Board::BlockedByEnemyPiece(int startTile, int target) const
 	return pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
 }
 
+bool Board::PieceExists(int index)
+{
+	if (pieces[index] == nullptr)
+	{
+		return false;
+	}
+	return true;
+}
+
+void Board::CompleteTurn()
+{
+	ClearEnPassant();
+	CalculateMoves();
+	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
+}
+
+bool Board::TileInArray(int target, std::vector<int> arr) const
+{
+	return std::find(arr.begin(), arr.end(), target) != arr.end();
+}
+
+void Board::PrepEdges()
+{
+	firstRank = { 56, 57, 58, 59, 60, 61, 62, 63 };
+	eighthRank = { 0, 1, 2, 3, 4, 5, 6, 7 };
+	aFile = { 0, 8, 16, 24, 32, 40, 48, 56 };
+	bFile = { 1, 9, 17, 25, 33, 41, 49, 57 };
+	gFile = { 6, 14, 22, 30, 38, 46, 54, 62 };
+	hFile = { 7, 15, 23, 31, 39, 47, 55, 63 };
+	topLeft = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56 };
+	topRight = { 0, 1, 2, 3, 4, 5, 6, 7, 15, 23, 31, 39, 47, 55, 63 };
+	bottomLeft = { 0, 8, 16, 24, 32, 40, 48, 56, 57, 58, 59, 60, 61, 62, 63 };
+	bottomRight = { 7, 15, 23, 31, 39, 47, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
+}
+
+void Board::CalculateEdges()
+{
+	int temp;
+
+	for (size_t i = 0; i < 64; i++)
+	{
+		temp = i % 8;
+
+		edgesFromTiles[i].left = i - temp;
+		edgesFromTiles[i].right = edgesFromTiles[i].left + 7;
+
+		temp = i / 8;
+
+		edgesFromTiles[i].top = i - (8 * temp);
+		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
+
+		temp = i;
+		while (!TileInArray(temp, topRight))
+		{
+			temp -= 7;
+		}
+		edgesFromTiles[i].topRight = temp;
+
+		temp = i;
+		while (!TileInArray(temp, topLeft))
+		{
+			temp -= 9;
+		}
+		edgesFromTiles[i].topLeft = temp;
+
+		temp = i;
+		while (!TileInArray(temp, bottomLeft))
+		{
+			temp += 7;
+		}
+		edgesFromTiles[i].bottomLeft = temp;
+
+		temp = i;
+		while (!TileInArray(temp, bottomRight))
+		{
+			temp += 9;
+		}
+		edgesFromTiles[i].bottomRight = temp;
+
+		// printf("%i\n", i);
+		// edgesFromTiles[i].Print();
+	}
+}
+
 void Board::AddNotBlocked(int startTile, int target, std::vector<int>& validMoves)
 {
-	if (0 <= target && target < 64 && !BlockedByOwnPiece(startTile, target))
+	if (InMapRange(target) && !BlockedByOwnPiece(startTile, target))
 	{
 		validMoves.push_back(target);
 	}
 }
 
-void Board::HandleEnPassant()
+bool Board::CheckCanCastle(int startTile, int target, int rookPos, int dir) const
+{
+	return InMapRange(target) && !BlockedByOwnPiece(startTile, target) && !BlockedByOwnPiece(startTile, target + -dir) &&
+		!BlockedByEnemyPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target + -dir) &&
+		InMapRange(rookPos) && pieces[rookPos] && pieces[rookPos]->GetTeam() == pieces[startTile]->GetTeam() &&
+		pieces[rookPos]->GetType() == ROOK && !pieces[rookPos]->bMoved;
+}
+
+void Board::HandleCastling(int startTile, int endTile)
+{
+	// left
+	if (startTile - 2 == endTile)
+	{
+		pieces[startTile - 1] = pieces[startTile - 4];
+		pieces[startTile - 4] = nullptr;
+		pieces[startTile - 1]->bMoved = true;
+	}
+	// right
+	else if (startTile + 2 == endTile)
+	{
+		pieces[startTile + 1] = pieces[startTile - 4];
+		pieces[startTile + 3] = nullptr;
+		pieces[startTile + 1]->bMoved = true;
+	}
+}
+
+void Board::CreateEnPassant(int startTile, int endTile)
+{
+	int teamDir = pieces[endTile]->GetTeam() == WHITE ? -1 : 1;
+	if (startTile + 16 * teamDir == endTile)
+	{
+		pieces[startTile + 8 * teamDir] = new Piece(currentTurn, EN_PASSANT);
+		lastEnPassantIndex = startTile + 8 * teamDir;
+		enPassantOwner = pieces[endTile];
+	}
+}
+
+void Board::ClearEnPassant()
 {
 	for (size_t i = 0; i < 64; i++)
 	{
@@ -824,6 +872,20 @@ void Board::HandleEnPassant()
 		}
 	}
 	lastEnPassantIndex = -1;
+}
+
+void Board::TakeByEnPassant()
+{
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (pieces[i] == enPassantOwner)
+		{
+			delete pieces[i];
+			pieces[i] = nullptr;
+			enPassantOwner = nullptr;
+			return;
+		}
+	}
 }
 
 void Board::CalculateMoves()

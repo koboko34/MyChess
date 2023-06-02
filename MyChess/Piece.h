@@ -20,7 +20,7 @@ public:
 
 	void DrawPiece();
 
-	bool bPawnMoved;
+	bool bMoved;
 
 private:
 	PieceTeam pieceTeam;

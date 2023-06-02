@@ -126,13 +126,20 @@ private:
 
 	void AddNotBlocked(int startTile, int target, std::vector<int>& validMoves);
 
-	void HandleEnPassant();
+	bool CheckCanCastle(int startTile, int target, int rookPos, int dir) const;
+	void HandleCastling(int startTile, int endTile);
+
+	void CreateEnPassant(int startTile, int endTile);
+	void ClearEnPassant();
+	void TakeByEnPassant();
 	int lastEnPassantIndex;
 	Piece* enPassantOwner;
 
 	std::vector<int> attackMapWhite[64];
 	std::vector<int> attackMapBlack[64];
 	void CalculateMoves();
+
+	bool InMapRange(int index) const { return 0 <= index && index < 64; }
 
 	void AddToMap(int startTile, std::vector<int> validMoves);
 

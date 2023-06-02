@@ -3,7 +3,7 @@
 Piece::Piece()
 {
 	VAO, EBO, VBO = 0;
-	bPawnMoved = false;
+	bMoved = false;
 }
 
 Piece::Piece(PieceTeam team, PieceType type)
@@ -13,7 +13,7 @@ Piece::Piece(PieceTeam team, PieceType type)
 
 	VAO, EBO, VBO = 0;
 
-	bPawnMoved = false;
+	bMoved = false;
 
 	Init();
 }
