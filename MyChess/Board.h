@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <vector>
+#include <set>
 
 #include <GL/glew.h>
 
@@ -137,11 +138,16 @@ private:
 
 	std::vector<int> attackMapWhite[64];
 	std::vector<int> attackMapBlack[64];
+	std::set<int> attackSetWhite;
+	std::set<int> attackSetBlack;
 	void CalculateMoves();
 
 	bool InMapRange(int index) const { return 0 <= index && index < 64; }
 
 	void AddToMap(int startTile, std::vector<int> validMoves);
+
+	int kingPosWhite;
+	int kingPosBlack;
 
 	bool bInCheckWhite;
 	bool bInCheckBlack;

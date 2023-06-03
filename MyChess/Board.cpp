@@ -904,6 +904,14 @@ void Board::CalculateMoves()
 		{
 		case KING:
 			CalcKingMoves(i);
+			if (pieces[i]->GetTeam() == WHITE)
+			{
+				kingPosWhite = i;
+			}
+			else
+			{
+				kingPosBlack = i;
+			}
 			break;
 		case QUEEN:
 			CalcQueenMoves(i);
@@ -921,6 +929,75 @@ void Board::CalculateMoves()
 			CalcPawnMoves(i);
 			break;
 		}
+	}
+
+	attackSetWhite.clear();
+	attackSetBlack.clear();
+
+	for (size_t tile = 0; tile < 64; tile++)
+	{
+		if (attackMapWhite[tile].empty())
+			continue;
+
+		// if pawn, only insert attacking, diagonal moves
+		if (pieces[tile]->GetType() == PAWN)
+		{
+			for (int i : attackMapWhite[tile])
+			{
+				if (i != tile - 8 && i != tile - 16)
+				{
+					attackSetWhite.insert(i);
+				}
+			}
+			continue;
+		}
+
+		for (int i : attackMapWhite[tile])
+		{
+			attackSetWhite.insert(i);
+		}
+	}
+
+	for (size_t tile = 0; tile < 64; tile++)
+	{
+		if (attackMapWhite[tile].empty())
+			continue;
+
+		// if pawn, only insert attacking, diagonal moves
+		if (pieces[tile]->GetType() == PAWN)
+		{
+			for (int i : attackMapWhite[tile])
+			{
+				if (i != tile - 8 && i != tile - 16)
+				{
+					attackSetWhite.insert(i);
+				}
+			}
+			continue;
+		}
+
+		for (int i : attackMapWhite[tile])
+		{
+			attackSetWhite.insert(i);
+		}
+	}
+
+	if (attackSetWhite.find(kingPosBlack) != attackSetWhite.end())
+	{
+		bInCheckBlack = true;
+	}
+	else
+	{
+		bInCheckBlack = false;
+	}
+
+	if (attackSetBlack.find(kingPosWhite) != attackSetBlack.end())
+	{
+		bInCheckWhite = true;
+	}
+	else
+	{
+		bInCheckWhite = false;
 	}
 }
 
