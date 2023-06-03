@@ -138,9 +138,14 @@ private:
 
 	std::vector<int> attackMapWhite[64];
 	std::vector<int> attackMapBlack[64];
+	void CalculateMoves();
+
 	std::set<int> attackSetWhite;
 	std::set<int> attackSetBlack;
-	void CalculateMoves();
+	void CalculateAttacks();
+
+	template <typename T>
+	bool TileInContainer(int target, T container) const;
 
 	bool InMapRange(int index) const { return 0 <= index && index < 64; }
 
@@ -151,6 +156,7 @@ private:
 
 	bool bInCheckWhite;
 	bool bInCheckBlack;
+	void CalculateCheck();
 
 	// calculate pinned pieces
 

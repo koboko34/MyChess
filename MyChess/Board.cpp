@@ -211,7 +211,7 @@ void Board::RenderTiles(int selectedObjectId)
 
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
 			if (InMapRange(selectedObjectId) && ((selectedObjectId == objectId && pieces[objectId] != nullptr) ||
-				TileInArray(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])))
+				TileInContainer(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])))
 			{
 				glUniform1i(tileColorModLocation, 0);
 			}
@@ -293,9 +293,16 @@ bool Board::MovePiece(int startTile, int endTile)
 		return false;
 	}
 
+	// check if move puts self in check by king moving into attacked square
+	if (pieces[startTile]->GetType() == KING && TileInContainer(endTile, pieces[startTile]->GetTeam() == WHITE ? attackSetBlack : attackSetWhite))
+	{
+		printf("Cannot put yourself in check!\n");
+		return false;
+	}
 
+	// check if move puts self in check by discovered check
 
-	// check if move puts self in check
+	
 
 
 
@@ -332,7 +339,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 bool Board::CheckLegalMove(int startTile, int endTile)
 {	
-	return TileInArray(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
+	return TileInContainer(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 }
 
 void Board::CalcKingMoves(int startTile)
@@ -370,22 +377,22 @@ void Board::CalcKingMoves(int startTile)
 
 	// top left
 	target = startTile - 9;
-	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, aFile) && !TileInArray(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
+	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// top right
 	target = startTile - 7;
-	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, hFile) && !TileInArray(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
+	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// bottom left
 	target = startTile + 7;
-	if (topRight <= target && target <= bottomLeft && !TileInArray(startTile, aFile) && !TileInArray(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
+	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// bottom right
 	target = startTile + 9;
-	if (topLeft <= target && target <= bottomRight && !TileInArray(startTile, hFile) && !TileInArray(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
+	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	if (pieces[startTile]->bMoved == false)
@@ -491,7 +498,7 @@ void Board::CalcKnightMoves(int startTile)
 	std::vector<int> attackingTiles;
 	int target;
 
-	if (TileInArray(startTile, aFile))
+	if (TileInContainer(startTile, aFile))
 	{
 		// up up right
 		target = startTile - 2 * 8 + 1;
@@ -509,7 +516,7 @@ void Board::CalcKnightMoves(int startTile)
 		target = startTile + 2 * 8 + 1;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
-	else if (TileInArray(startTile, bFile))
+	else if (TileInContainer(startTile, bFile))
 	{
 		// up up left
 		target = startTile - 2 * 8 - 1;
@@ -535,7 +542,7 @@ void Board::CalcKnightMoves(int startTile)
 		target = startTile + 2 * 8 - 1;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
-	else if (TileInArray(startTile, hFile))
+	else if (TileInContainer(startTile, hFile))
 	{
 		// up up left
 		target = startTile - 2 * 8 - 1;
@@ -553,7 +560,7 @@ void Board::CalcKnightMoves(int startTile)
 		target = startTile + 2 * 8 - 1;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
-	else if (TileInArray(startTile, gFile))
+	else if (TileInContainer(startTile, gFile))
 	{
 		// up up right
 		target = startTile - 2 * 8 + 1;
@@ -748,9 +755,10 @@ void Board::CompleteTurn()
 	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
 }
 
-bool Board::TileInArray(int target, std::vector<int> arr) const
+template <typename T>
+bool Board::TileInContainer(int target, T container) const
 {
-	return std::find(arr.begin(), arr.end(), target) != arr.end();
+	return std::find(container.begin(), container.end(), target) != container.end();
 }
 
 void Board::PrepEdges()
@@ -784,28 +792,28 @@ void Board::CalculateEdges()
 		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
 
 		temp = i;
-		while (!TileInArray(temp, topRight))
+		while (!TileInContainer(temp, topRight))
 		{
 			temp -= 7;
 		}
 		edgesFromTiles[i].topRight = temp;
 
 		temp = i;
-		while (!TileInArray(temp, topLeft))
+		while (!TileInContainer(temp, topLeft))
 		{
 			temp -= 9;
 		}
 		edgesFromTiles[i].topLeft = temp;
 
 		temp = i;
-		while (!TileInArray(temp, bottomLeft))
+		while (!TileInContainer(temp, bottomLeft))
 		{
 			temp += 7;
 		}
 		edgesFromTiles[i].bottomLeft = temp;
 
 		temp = i;
-		while (!TileInArray(temp, bottomRight))
+		while (!TileInContainer(temp, bottomRight))
 		{
 			temp += 9;
 		}
@@ -931,6 +939,12 @@ void Board::CalculateMoves()
 		}
 	}
 
+	CalculateAttacks();
+	CalculateCheck();
+}
+
+void Board::CalculateAttacks()
+{
 	attackSetWhite.clear();
 	attackSetBlack.clear();
 
@@ -981,24 +995,6 @@ void Board::CalculateMoves()
 			attackSetWhite.insert(i);
 		}
 	}
-
-	if (attackSetWhite.find(kingPosBlack) != attackSetWhite.end())
-	{
-		bInCheckBlack = true;
-	}
-	else
-	{
-		bInCheckBlack = false;
-	}
-
-	if (attackSetBlack.find(kingPosWhite) != attackSetBlack.end())
-	{
-		bInCheckWhite = true;
-	}
-	else
-	{
-		bInCheckWhite = false;
-	}
 }
 
 void Board::AddToMap(int startTile, std::vector<int> validMoves)
@@ -1021,6 +1017,30 @@ void Board::AddToMap(int startTile, std::vector<int> validMoves)
 		{
 			attackMapBlack[startTile].push_back(i);
 		}
+	}
+}
+
+void Board::CalculateCheck()
+{
+	if (TileInContainer(kingPosBlack, attackSetWhite))
+	{
+		bInCheckBlack = true;
+		printf("Black in check!\n");
+	}
+	else
+	{
+		bInCheckBlack = false;
+	}
+
+	if (TileInContainer(kingPosWhite, attackSetBlack))
+	{
+		bInCheckWhite = true;
+		printf("White in check!\n");
+
+	}
+	else
+	{
+		bInCheckWhite = false;
 	}
 }
 
