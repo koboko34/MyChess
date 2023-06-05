@@ -356,48 +356,48 @@ void Board::CalcKingMoves(int startTile)
 	int bottomRight = edgesFromTiles[startTile].bottomRight;
 
 	// down
-	int target = startTile + 8;
+	int target = startTile + DOWN;
 	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 	
 	// up
-	target = startTile - 8;
+	target = startTile + UP;
 	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// left
-	target = startTile - 1;
+	target = startTile + LEFT;
 	if (left <= target && target <= right && startTile != left && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// right
-	target = startTile + 1;
+	target = startTile + RIGHT;
 	if (left <= target && target <= right && startTile != right && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// top left
-	target = startTile - 9;
+	target = startTile + TOP_LEFT;
 	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// top right
-	target = startTile - 7;
+	target = startTile + TOP_RIGHT;
 	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// bottom left
-	target = startTile + 7;
+	target = startTile + BOT_LEFT;
 	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// bottom right
-	target = startTile + 9;
+	target = startTile + BOT_RIGHT;
 	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	if (pieces[startTile]->bMoved == false)
 	{
-		// castle left
+		// long castle
 		target = startTile - 2;
 		int rookPos = target - 2;
 		if (CheckCanCastle(startTile, target, rookPos, -1))
@@ -405,7 +405,7 @@ void Board::CalcKingMoves(int startTile)
 			attackingTiles.push_back(target);
 		}
 
-		// castle right
+		// short castle
 		target = startTile + 2;
 		rookPos = target + 1;
 		if (CheckCanCastle(startTile, target, rookPos, 1))
@@ -427,14 +427,13 @@ void Board::CalcBishopMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
 
-	int target = startTile - 9;
-
 	int topLeft = edgesFromTiles[startTile].topLeft;
 	int topRight = edgesFromTiles[startTile].topRight;
 	int bottomLeft = edgesFromTiles[startTile].bottomLeft;
 	int bottomRight = edgesFromTiles[startTile].bottomRight;
 
 	// top left
+	int target = startTile + TOP_LEFT;
 	while (topLeft <= target && target <= bottomRight && !BlockedByOwnPiece(startTile, target))
 	{
 		if (BlockedByEnemyPiece(startTile, target))
@@ -444,11 +443,11 @@ void Board::CalcBishopMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target -= 9;
+		target += TOP_LEFT;
 	}
 	
-	target = startTile - 7;
 	// top right
+	target = startTile + TOP_RIGHT;
 	while (topRight <= target && target <= bottomLeft && !BlockedByOwnPiece(startTile, target))
 	{
 		if (BlockedByEnemyPiece(startTile, target))
@@ -458,11 +457,11 @@ void Board::CalcBishopMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target -= 7;
+		target += TOP_RIGHT;
 	}
 	
-	target = startTile + 7;
 	// bottom left
+	target = startTile + BOT_LEFT;
 	while (topRight <= target && target <= bottomLeft && !BlockedByOwnPiece(startTile, target))
 	{
 		if (BlockedByEnemyPiece(startTile, target))
@@ -472,11 +471,11 @@ void Board::CalcBishopMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target += 7;
+		target += BOT_LEFT;
 	}
 
-	target = startTile + 9;
 	// bottom right
+	target = startTile + BOT_RIGHT;
 	while (topLeft <= target && target <= bottomRight && !BlockedByOwnPiece(startTile, target))
 	{
 		if (BlockedByEnemyPiece(startTile, target))
@@ -486,7 +485,7 @@ void Board::CalcBishopMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target += 9;
+		target += BOT_RIGHT;
 	}
 	
 	AddToMap(startTile, attackingTiles);
@@ -501,123 +500,123 @@ void Board::CalcKnightMoves(int startTile)
 	if (TileInContainer(startTile, aFile))
 	{
 		// up up right
-		target = startTile - 2 * 8 + 1;
+		target = startTile + UP + UP + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right up
-		target = startTile - 8 + 2;
+		target = startTile + RIGHT + RIGHT + UP;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right down
-		target = startTile + 8 + 2;
+		target = startTile + RIGHT + RIGHT + DOWN;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down right
-		target = startTile + 2 * 8 + 1;
+		target = startTile + DOWN + DOWN + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
 	else if (TileInContainer(startTile, bFile))
 	{
 		// up up left
-		target = startTile - 2 * 8 - 1;
+		target = startTile + UP + UP + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 		
 		// up up right
-		target = startTile - 2 * 8 + 1;
+		target = startTile + UP + UP + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right up
-		target = startTile - 8 + 2;
+		target = startTile + RIGHT + RIGHT + UP;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right down
-		target = startTile + 8 + 2;
+		target = startTile + RIGHT + RIGHT + DOWN;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down right
-		target = startTile + 2 * 8 + 1;
+		target = startTile + DOWN + DOWN + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down left
-		target = startTile + 2 * 8 - 1;
+		target = startTile + DOWN + DOWN + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
 	else if (TileInContainer(startTile, hFile))
 	{
 		// up up left
-		target = startTile - 2 * 8 - 1;
+		target = startTile + UP + UP + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left up
-		target = startTile - 8 - 2;
+		target = startTile + LEFT + LEFT + UP;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left down
-		target = startTile + 8 - 2;
+		target = startTile + LEFT + LEFT + DOWN;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down left
-		target = startTile + 2 * 8 - 1;
+		target = startTile + DOWN + DOWN + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
 	else if (TileInContainer(startTile, gFile))
 	{
 		// up up right
-		target = startTile - 2 * 8 + 1;
+		target = startTile + UP + UP + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// up up left
-		target = startTile - 2 * 8 - 1;
+		target = startTile + UP + UP + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left up
-		target = startTile - 8 - 2;
+		target = startTile + LEFT + LEFT + UP;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left down
-		target = startTile + 8 - 2;
+		target = startTile + LEFT + LEFT + DOWN;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down left
-		target = startTile + 2 * 8 - 1;
+		target = startTile + DOWN + DOWN + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down right
-		target = startTile + 2 * 8 + 1;
+		target = startTile + DOWN + DOWN + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
 	else
 	{
 		// up up right
-		target = startTile - 2 * 8 + 1;
+		target = startTile + UP + UP + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right up
-		target = startTile - 8 + 2;
+		target = startTile + RIGHT + RIGHT + UP;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// right right down
-		target = startTile + 8 + 2;
+		target = startTile + RIGHT + RIGHT + DOWN;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down right
-		target = startTile + 2 * 8 + 1;
+		target = startTile + DOWN + DOWN + RIGHT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// up up left
-		target = startTile - 2 * 8 - 1;
+		target = startTile + UP + UP + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left up
-		target = startTile - 8 - 2;
+		target = startTile + LEFT + LEFT + UP;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// left left down
-		target = startTile + 8 - 2;
+		target = startTile + LEFT + LEFT + DOWN;
 		AddNotBlocked(startTile, target, attackingTiles);
 
 		// down down left
-		target = startTile + 2 * 8 - 1;
+		target = startTile + DOWN + DOWN + LEFT;
 		AddNotBlocked(startTile, target, attackingTiles);
 	}
 
@@ -628,8 +627,7 @@ void Board::CalcRookMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
 	
-	int dir = 1;
-	int target = startTile + 8 * dir;
+	int target = startTile + DOWN;
 
 	int top = edgesFromTiles[startTile].top;
 	int bottom = edgesFromTiles[startTile].bottom;
@@ -644,11 +642,11 @@ void Board::CalcRookMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target += 8 * dir;
+		target += DOWN;
 	}
 
 	// up
-	target = startTile - 8 * dir;
+	target = startTile + UP;
 	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
 	{
 		if (BlockedByEnemyPiece(startTile, target))
@@ -658,14 +656,14 @@ void Board::CalcRookMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target -= 8 * dir;
+		target += UP;
 	}
 
-	target = startTile + 1 * dir;
 	int left = edgesFromTiles[startTile].left;
 	int right = edgesFromTiles[startTile].right;
 
 	// right
+	target = startTile + RIGHT;
 	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
 	{
 		if (BlockedByEnemyPiece(startTile, target))
@@ -675,11 +673,11 @@ void Board::CalcRookMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target += 1 * dir;
+		target += RIGHT;
 	}
 
 	// left
-	target = startTile - 1 * dir;
+	target = startTile + LEFT;
 	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
 	{
 		if (BlockedByEnemyPiece(startTile, target))
@@ -689,7 +687,7 @@ void Board::CalcRookMoves(int startTile)
 		}
 
 		attackingTiles.push_back(target);
-		target -= 1 * dir;
+		target += LEFT;
 	}
 	
 	AddToMap(startTile, attackingTiles);
@@ -699,30 +697,30 @@ void Board::CalcPawnMoves(int startTile)
 {
 	// 4 cases, move forward by 1, move forward by 2 (only first move), take diagonal, take by en passant
 	std::vector<int> attackingTiles;
-	int teamDir = pieces[startTile]->GetTeam() == WHITE ? -1 : 1;
+	int teamDir = pieces[startTile]->GetTeam() == WHITE ? 1 : -1;
 	int target;
 
 	// forward by 1
-	target = startTile + 8 * teamDir;
+	target = startTile + UP * teamDir;
 	if (InMapRange(target) && !BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target))
 		attackingTiles.push_back(target);
 
 	// forward by 2 if first move of this pawn
 	// handle creation of en passant piece when move is confirmed
-	target = startTile + 16 * teamDir;
+	target = startTile + (2 * UP) * teamDir;
 	if (InMapRange(target) && !pieces[startTile]->bMoved && !BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target) &&
-		!BlockedByOwnPiece(startTile, target - 8 * teamDir) && !BlockedByEnemyPiece(startTile, target - 8 * teamDir))
+		!BlockedByOwnPiece(startTile, target + DOWN * teamDir) && !BlockedByEnemyPiece(startTile, target + DOWN * teamDir))
 		attackingTiles.push_back(target);
 
 	// take on diagonal, local forward right
 	// handle destruction of en passant piece when move is confirmed
-	target = startTile + 7 * teamDir;
+	target = startTile + TOP_RIGHT * teamDir;
 	if (InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 		attackingTiles.push_back(target);
 
 	// take on diagonal, local forward left
 	// handle destruction of en passant piece when move is confirmed
-	target = startTile + 9 * teamDir;
+	target = startTile + TOP_LEFT * teamDir;
 	if (InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 		attackingTiles.push_back(target);
 
@@ -842,14 +840,14 @@ bool Board::CheckCanCastle(int startTile, int target, int rookPos, int dir) cons
 
 void Board::HandleCastling(int startTile, int endTile)
 {
-	// left
+	// long castle
 	if (startTile - 2 == endTile)
 	{
 		pieces[startTile - 1] = pieces[startTile - 4];
 		pieces[startTile - 4] = nullptr;
 		pieces[startTile - 1]->bMoved = true;
 	}
-	// right
+	// short castle
 	else if (startTile + 2 == endTile)
 	{
 		pieces[startTile + 1] = pieces[startTile - 4];

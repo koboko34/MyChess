@@ -21,4 +21,16 @@ enum PieceTeam
 	BLACK = 2
 };
 
+enum BoardDir
+{
+	TOP_LEFT = -9,
+	UP = -8,
+	TOP_RIGHT = -7,
+	RIGHT = 1,
+	BOT_RIGHT = 9,
+	DOWN = 8,
+	BOT_LEFT = 7,
+	LEFT = -1
+};
+
 #endif
