@@ -91,8 +91,6 @@ private:
 	std::vector<int> bottomLeft;
 	std::vector<int> bottomRight;
 
-	bool TileInArray(int target, std::vector<int> arr) const;
-
 	struct EdgesFromTile
 	{
 		int left;
@@ -157,6 +155,19 @@ private:
 	bool bInCheckWhite;
 	bool bInCheckBlack;
 	void CalculateCheck();
+	void CalcCheckVision(PieceTeam team);
+
+	struct CheckingPiece
+	{
+		PieceType pieceType;
+		int tile;
+		int dir;
+
+		void CalculateDir();
+	};
+
+	std::vector<CheckingPiece*> checkingPiecesWhite;
+	std::vector<CheckingPiece*> checkingPiecesBlack;
 
 	// calculate pinned pieces
 

@@ -264,19 +264,17 @@ void Board::RenderPieces()
 
 bool Board::MovePiece(int startTile, int endTile)
 {
-	printf("Attempting to play a move...\n");
+	// printf("Attempting to play a move...\n");
 
 	if (pieces[startTile] == nullptr)
 		return false;
 
-	if (endTile < 0 || endTile > 63)
-	{
+	if (endTile < 0 || endTile >= 64 || startTile < 0 || startTile >= 64)
 		return false;
-	}
 
 	if (!IsCurrentTurn(startTile))
 	{
-		printf("It is %s's move!\n", currentTurn ? "black" : "white");
+		printf("It is %s's move!\n", currentTurn == WHITE ? "white" : "black");
 		return false;
 	}
 
@@ -1023,6 +1021,7 @@ void Board::CalculateCheck()
 	if (TileInContainer(kingPosBlack, attackSetWhite))
 	{
 		bInCheckBlack = true;
+		CalcCheckVision(WHITE);
 		printf("Black in check!\n");
 	}
 	else
@@ -1033,6 +1032,7 @@ void Board::CalculateCheck()
 	if (TileInContainer(kingPosWhite, attackSetBlack))
 	{
 		bInCheckWhite = true;
+		CalcCheckVision(BLACK);
 		printf("White in check!\n");
 
 	}
@@ -1040,6 +1040,45 @@ void Board::CalculateCheck()
 	{
 		bInCheckWhite = false;
 	}
+}
+
+void Board::CalcCheckVision(PieceTeam team)
+{
+	std::vector<CheckingPiece*> checkingPieces;
+	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
+
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (pieces[i] == nullptr)
+		{
+			continue;
+		}
+
+		if (TileInContainer(kingPos, team == WHITE ? attackMapWhite[i] : attackMapBlack[i]))
+		{
+			CheckingPiece* checkingPiece = new CheckingPiece();
+			checkingPiece->tile = i;
+			checkingPiece->pieceType = pieces[i]->GetType();
+			checkingPiece->CalculateDir();
+			checkingPieces.push_back(checkingPiece);
+		}
+	}
+
+	if (team == WHITE)
+	{
+		checkingPiecesWhite.clear();
+		checkingPiecesWhite = checkingPieces;
+	}
+	else
+	{
+		checkingPiecesBlack.clear();
+		checkingPiecesBlack = checkingPieces;
+	}
+}
+
+void Board::CheckingPiece::CalculateDir()
+{
+	printf("Remember to calculate dir\n");
 }
 
 void Board::GameOver(int winningTeam)
