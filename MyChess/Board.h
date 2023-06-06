@@ -161,13 +161,23 @@ private:
 	{
 		PieceType pieceType;
 		int tile;
-		int dir;
+		std::vector<int> lineOfSight;
 
-		void CalculateDir();
 	};
+
+	void AddCheckingPiece(int startTile, const std::vector<int>& checkLOS);
+
+	void CalcCheckLOS(CheckingPiece* Piece);
+	void CalcQueenLOS(CheckingPiece* piece);
+	void CalcBishopLOS(CheckingPiece* piece);
+	void CalcKnightLOS(CheckingPiece* piece);
+	void CalcRookLOS(CheckingPiece* piece);
+	void CalcPawnLOS(CheckingPiece* piece);
 
 	std::vector<CheckingPiece*> checkingPiecesWhite;
 	std::vector<CheckingPiece*> checkingPiecesBlack;
+
+	void ClearCheckingPieces();
 
 	// calculate pinned pieces
 

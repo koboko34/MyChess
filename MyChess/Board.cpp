@@ -624,7 +624,12 @@ void Board::CalcKnightMoves(int startTile)
 void Board::CalcRookMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
+	std::vector<int> checkLOS;
+	checkLOS.push_back(startTile);
+
+	PieceTeam team = pieces[startTile]->GetTeam();
 	
+	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
 	int target = startTile + DOWN;
 
 	int top = edgesFromTiles[startTile].top;
@@ -635,13 +640,20 @@ void Board::CalcRookMoves(int startTile)
 	{
 		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingTiles.push_back(target);
+			checkLOS.push_back(target);
+			if (target == kingPos)
+			{
+				AddCheckingPiece(startTile, checkLOS);
+			}
 			break;
 		}
 
-		attackingTiles.push_back(target);
+		checkLOS.push_back(target);
 		target += DOWN;
 	}
+	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	checkLOS.clear();
+	checkLOS.push_back(startTile);
 
 	// up
 	target = startTile + UP;
@@ -649,13 +661,20 @@ void Board::CalcRookMoves(int startTile)
 	{
 		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingTiles.push_back(target);
+			checkLOS.push_back(target);
+			if (target == kingPos)
+			{
+				AddCheckingPiece(startTile, checkLOS);
+			}
 			break;
 		}
 
-		attackingTiles.push_back(target);
+		checkLOS.push_back(target);
 		target += UP;
 	}
+	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	checkLOS.clear();
+	checkLOS.push_back(startTile);
 
 	int left = edgesFromTiles[startTile].left;
 	int right = edgesFromTiles[startTile].right;
@@ -666,13 +685,20 @@ void Board::CalcRookMoves(int startTile)
 	{
 		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingTiles.push_back(target);
+			checkLOS.push_back(target);
+			if (target == kingPos)
+			{
+				AddCheckingPiece(startTile, checkLOS);
+			}
 			break;
 		}
 
-		attackingTiles.push_back(target);
+		checkLOS.push_back(target);
 		target += RIGHT;
 	}
+	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	checkLOS.clear();
+	checkLOS.push_back(startTile);
 
 	// left
 	target = startTile + LEFT;
@@ -680,13 +706,18 @@ void Board::CalcRookMoves(int startTile)
 	{
 		if (BlockedByEnemyPiece(startTile, target))
 		{
-			attackingTiles.push_back(target);
+			checkLOS.push_back(target);
+			if (target == kingPos)
+			{
+				AddCheckingPiece(startTile, checkLOS);
+			}
 			break;
 		}
 
-		attackingTiles.push_back(target);
+		checkLOS.push_back(target);
 		target += LEFT;
 	}
+	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
 	
 	AddToMap(startTile, attackingTiles);
 }
@@ -747,8 +778,18 @@ bool Board::PieceExists(int index)
 void Board::CompleteTurn()
 {
 	ClearEnPassant();
-	CalculateMoves();
+
+	if (currentTurn == WHITE)
+	{
+		bInCheckWhite = false;
+	}
+	else
+	{
+		bInCheckBlack = false;
+	}
+
 	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
+	CalculateMoves();
 }
 
 template <typename T>
@@ -894,6 +935,8 @@ void Board::TakeByEnPassant()
 
 void Board::CalculateMoves()
 {
+	ClearCheckingPieces();
+	
 	for (size_t i = 0; i < 64; i++)
 	{
 		attackMapWhite[i].clear();
@@ -937,6 +980,15 @@ void Board::CalculateMoves()
 
 	CalculateAttacks();
 	CalculateCheck();
+
+	for (CheckingPiece* piece : checkingPiecesWhite)
+	{
+		for (int i : piece->lineOfSight)
+		{
+			printf("%i, ", i);
+		}
+		std::cout << std::endl;
+	}
 }
 
 void Board::CalculateAttacks()
@@ -1018,27 +1070,36 @@ void Board::AddToMap(int startTile, std::vector<int> validMoves)
 
 void Board::CalculateCheck()
 {
-	if (TileInContainer(kingPosBlack, attackSetWhite))
+	if (currentTurn == WHITE)
 	{
-		bInCheckBlack = true;
-		CalcCheckVision(WHITE);
-		printf("Black in check!\n");
+		if (TileInContainer(kingPosWhite, attackSetBlack))
+		{
+			bInCheckWhite = true;
+			printf("White in check!\n");
+
+			// CalcCheckVision(BLACK);
+
+			// if no legal moves, checkmate
+
+		}
+		else
+		{
+			bInCheckWhite = false;
+		}
 	}
 	else
 	{
-		bInCheckBlack = false;
-	}
+		if (TileInContainer(kingPosBlack, attackSetWhite))
+		{
+			bInCheckBlack = true;
+			printf("Black in check!\n");
 
-	if (TileInContainer(kingPosWhite, attackSetBlack))
-	{
-		bInCheckWhite = true;
-		CalcCheckVision(BLACK);
-		printf("White in check!\n");
-
-	}
-	else
-	{
-		bInCheckWhite = false;
+			// CalcCheckVision(WHITE);
+		}
+		else
+		{
+			bInCheckBlack = false;
+		}
 	}
 }
 
@@ -1059,26 +1120,177 @@ void Board::CalcCheckVision(PieceTeam team)
 			CheckingPiece* checkingPiece = new CheckingPiece();
 			checkingPiece->tile = i;
 			checkingPiece->pieceType = pieces[i]->GetType();
-			checkingPiece->CalculateDir();
+			CalcCheckLOS(checkingPiece);
 			checkingPieces.push_back(checkingPiece);
 		}
 	}
 
 	if (team == WHITE)
 	{
-		checkingPiecesWhite.clear();
 		checkingPiecesWhite = checkingPieces;
 	}
 	else
 	{
-		checkingPiecesBlack.clear();
 		checkingPiecesBlack = checkingPieces;
 	}
 }
 
-void Board::CheckingPiece::CalculateDir()
+void Board::AddCheckingPiece(int startTile, const std::vector<int>& checkLOS)
 {
-	printf("Remember to calculate dir\n");
+	CheckingPiece* checkingPiece = new CheckingPiece();
+	checkingPiece->tile = startTile;
+	checkingPiece->pieceType = pieces[startTile]->GetType();
+	checkingPiece->lineOfSight = checkLOS;
+	pieces[startTile]->GetTeam() == WHITE ? checkingPiecesWhite.push_back(checkingPiece) : checkingPiecesBlack.push_back(checkingPiece);
+}
+
+// might not need from here
+void Board::CalcCheckLOS(CheckingPiece* piece)
+{
+	switch (piece->pieceType)
+	{
+	case QUEEN:
+		CalcQueenLOS(piece);
+		break;
+	case BISHOP:
+		CalcBishopLOS(piece);
+		break;
+	case KNIGHT:
+		CalcKnightLOS(piece);
+		break;
+	case ROOK:
+		CalcRookLOS(piece);
+		break;
+	case PAWN:
+		CalcPawnLOS(piece);
+		break;
+	}
+
+	piece->lineOfSight.push_back(piece->tile);
+}
+
+void Board::CalcQueenLOS(CheckingPiece* piece)
+{
+}
+
+void Board::CalcBishopLOS(CheckingPiece* piece)
+{
+}
+
+void Board::CalcKnightLOS(CheckingPiece* piece)
+{
+}
+
+void Board::CalcRookLOS(CheckingPiece* piece)
+{
+	std::vector<int> attackingTiles;
+
+	int startTile = piece->tile;
+	int target = startTile + DOWN;
+
+	int top = edgesFromTiles[startTile].top;
+	int bottom = edgesFromTiles[startTile].bottom;
+
+	// down
+	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
+	{
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			if (pieces[target]->GetType() == KING)
+			{
+				attackingTiles.push_back(target);
+				piece->lineOfSight = attackingTiles;
+				return;
+			}
+			break;
+		}
+
+		attackingTiles.push_back(target);
+		target += DOWN;
+	}
+
+	// up
+	attackingTiles.clear();
+	target = startTile + UP;
+	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
+	{
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			if (pieces[target]->GetType() == KING)
+			{
+				attackingTiles.push_back(target);
+				piece->lineOfSight = attackingTiles;
+				return;
+			}
+			break;
+		}
+
+		attackingTiles.push_back(target);
+		target += UP;
+	}
+
+	int left = edgesFromTiles[startTile].left;
+	int right = edgesFromTiles[startTile].right;
+
+	// right
+	attackingTiles.clear();
+	target = startTile + RIGHT;
+	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
+	{
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			if (pieces[target]->GetType() == KING)
+			{
+				attackingTiles.push_back(target);
+				piece->lineOfSight = attackingTiles;
+				return;
+			}
+			break;
+		}
+
+		attackingTiles.push_back(target);
+		target += RIGHT;
+	}
+
+	// left
+	attackingTiles.clear();
+	target = startTile + LEFT;
+	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
+	{
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			if (pieces[target]->GetType() == KING)
+			{
+				attackingTiles.push_back(target);
+				piece->lineOfSight = attackingTiles;
+				return;
+			}
+			break;
+		}
+
+		attackingTiles.push_back(target);
+		target += LEFT;
+	}
+}
+
+void Board::CalcPawnLOS(CheckingPiece* piece)
+{
+}
+// to here
+
+void Board::ClearCheckingPieces()
+{
+	while (checkingPiecesWhite.size() != 0)
+	{
+		delete checkingPiecesWhite[0];
+		checkingPiecesWhite.erase(checkingPiecesWhite.begin());
+	}
+	
+	while (checkingPiecesBlack.size() != 0)
+	{
+		delete checkingPiecesBlack[0];
+		checkingPiecesBlack.erase(checkingPiecesBlack.begin());
+	}
 }
 
 void Board::GameOver(int winningTeam)
