@@ -157,12 +157,14 @@ private:
 	void CalculateCheck();
 	void CalcCheckVision(PieceTeam team);
 
+	bool MoveBlocksCheck(int startTile, int endTile);
+	bool KingEscapesCheck(int endTile);
+
 	struct CheckingPiece
 	{
 		PieceType pieceType;
 		int tile;
 		std::vector<int> lineOfSight;
-
 	};
 
 	void AddCheckingPiece(int startTile, const std::vector<int>& checkLOS);

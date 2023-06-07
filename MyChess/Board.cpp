@@ -264,8 +264,6 @@ void Board::RenderPieces()
 
 bool Board::MovePiece(int startTile, int endTile)
 {
-	// printf("Attempting to play a move...\n");
-
 	if (pieces[startTile] == nullptr)
 		return false;
 
@@ -298,9 +296,18 @@ bool Board::MovePiece(int startTile, int endTile)
 		return false;
 	}
 
-	// check if move puts self in check by discovered check
+	// check if moving pinned piece for discovered check on self
 
-	
+	// if in check
+	if (currentTurn == WHITE ? bInCheckWhite : bInCheckBlack == true)
+	{
+		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile]->GetType() == KING && KingEscapesCheck(endTile)))
+		{
+			printf("Move does not escape check!\n");
+			return false;
+		}
+	}
+		
 
 
 
@@ -625,11 +632,11 @@ void Board::CalcRookMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
 	std::vector<int> checkLOS;
-	checkLOS.push_back(startTile);
 
 	PieceTeam team = pieces[startTile]->GetTeam();
 	
 	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
+	bool foundKing = false;
 	int target = startTile + DOWN;
 
 	int top = edgesFromTiles[startTile].top;
@@ -643,7 +650,10 @@ void Board::CalcRookMoves(int startTile)
 			checkLOS.push_back(target);
 			if (target == kingPos)
 			{
-				AddCheckingPiece(startTile, checkLOS);
+				foundKing = true;
+				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+				target += DOWN;
+				continue;
 			}
 			break;
 		}
@@ -651,9 +661,16 @@ void Board::CalcRookMoves(int startTile)
 		checkLOS.push_back(target);
 		target += DOWN;
 	}
-	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	if (!foundKing)
+	{
+		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	}
+	else
+	{
+		AddCheckingPiece(startTile, checkLOS);
+		foundKing = false;
+	}
 	checkLOS.clear();
-	checkLOS.push_back(startTile);
 
 	// up
 	target = startTile + UP;
@@ -664,7 +681,10 @@ void Board::CalcRookMoves(int startTile)
 			checkLOS.push_back(target);
 			if (target == kingPos)
 			{
-				AddCheckingPiece(startTile, checkLOS);
+				foundKing = true;
+				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+				target += UP;
+				continue;
 			}
 			break;
 		}
@@ -672,9 +692,16 @@ void Board::CalcRookMoves(int startTile)
 		checkLOS.push_back(target);
 		target += UP;
 	}
-	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	if (!foundKing)
+	{
+		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	}
+	else
+	{
+		AddCheckingPiece(startTile, checkLOS);
+		foundKing = false;
+	}
 	checkLOS.clear();
-	checkLOS.push_back(startTile);
 
 	int left = edgesFromTiles[startTile].left;
 	int right = edgesFromTiles[startTile].right;
@@ -688,7 +715,10 @@ void Board::CalcRookMoves(int startTile)
 			checkLOS.push_back(target);
 			if (target == kingPos)
 			{
-				AddCheckingPiece(startTile, checkLOS);
+				foundKing = true;
+				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+				target += RIGHT;
+				continue;
 			}
 			break;
 		}
@@ -696,9 +726,16 @@ void Board::CalcRookMoves(int startTile)
 		checkLOS.push_back(target);
 		target += RIGHT;
 	}
-	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	if (!foundKing)
+	{
+		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	}
+	else
+	{
+		AddCheckingPiece(startTile, checkLOS);
+		foundKing = false;
+	}
 	checkLOS.clear();
-	checkLOS.push_back(startTile);
 
 	// left
 	target = startTile + LEFT;
@@ -709,7 +746,10 @@ void Board::CalcRookMoves(int startTile)
 			checkLOS.push_back(target);
 			if (target == kingPos)
 			{
-				AddCheckingPiece(startTile, checkLOS);
+				foundKing = true;
+				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+				target += LEFT;
+				continue;
 			}
 			break;
 		}
@@ -717,7 +757,16 @@ void Board::CalcRookMoves(int startTile)
 		checkLOS.push_back(target);
 		target += LEFT;
 	}
-	attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	if (!foundKing)
+	{
+		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	}
+	else
+	{
+		AddCheckingPiece(startTile, checkLOS);
+		foundKing = false;
+	}
+	checkLOS.clear();
 	
 	AddToMap(startTile, attackingTiles);
 }
@@ -980,15 +1029,6 @@ void Board::CalculateMoves()
 
 	CalculateAttacks();
 	CalculateCheck();
-
-	for (CheckingPiece* piece : checkingPiecesWhite)
-	{
-		for (int i : piece->lineOfSight)
-		{
-			printf("%i, ", i);
-		}
-		std::cout << std::endl;
-	}
 }
 
 void Board::CalculateAttacks()
@@ -1022,25 +1062,25 @@ void Board::CalculateAttacks()
 
 	for (size_t tile = 0; tile < 64; tile++)
 	{
-		if (attackMapWhite[tile].empty())
+		if (attackMapBlack[tile].empty())
 			continue;
 
 		// if pawn, only insert attacking, diagonal moves
 		if (pieces[tile]->GetType() == PAWN)
 		{
-			for (int i : attackMapWhite[tile])
+			for (int i : attackMapBlack[tile])
 			{
 				if (i != tile - 8 && i != tile - 16)
 				{
-					attackSetWhite.insert(i);
+					attackSetBlack.insert(i);
 				}
 			}
 			continue;
 		}
 
-		for (int i : attackMapWhite[tile])
+		for (int i : attackMapBlack[tile])
 		{
-			attackSetWhite.insert(i);
+			attackSetBlack.insert(i);
 		}
 	}
 }
@@ -1103,6 +1143,7 @@ void Board::CalculateCheck()
 	}
 }
 
+// might not need this function anymore
 void Board::CalcCheckVision(PieceTeam team)
 {
 	std::vector<CheckingPiece*> checkingPieces;
@@ -1133,6 +1174,40 @@ void Board::CalcCheckVision(PieceTeam team)
 	{
 		checkingPiecesBlack = checkingPieces;
 	}
+}
+
+bool Board::MoveBlocksCheck(int startTile, int endTile)
+{
+	int size = currentTurn == WHITE ? checkingPiecesBlack.size() : checkingPiecesWhite.size();
+	
+	if (size == 1)
+	{
+		return pieces[startTile]->GetType() != KING && TileInContainer(endTile, currentTurn == WHITE ? checkingPiecesBlack[0]->lineOfSight : checkingPiecesWhite[0]->lineOfSight);
+	}
+	return false;
+}
+
+bool Board::KingEscapesCheck(int endTile)
+{
+	std::vector<int> checkingTilesBlack;
+	std::vector<int> checkingTilesWhite;
+
+	if (currentTurn == WHITE)
+	{
+		for (CheckingPiece* piece : checkingPiecesBlack)
+		{
+			checkingTilesBlack.insert(checkingTilesBlack.end(), piece->lineOfSight.begin(), piece->lineOfSight.end());
+		}
+	}
+	else
+	{
+		for (CheckingPiece* piece : checkingPiecesWhite)
+		{
+			checkingTilesWhite.insert(checkingTilesWhite.end(), piece->lineOfSight.begin(), piece->lineOfSight.end());
+		}
+	}
+	
+	return !TileInContainer(endTile, currentTurn == WHITE ? checkingTilesBlack : checkingTilesWhite);
 }
 
 void Board::AddCheckingPiece(int startTile, const std::vector<int>& checkLOS)
