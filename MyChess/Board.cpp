@@ -301,7 +301,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	// if in check
 	if (currentTurn == WHITE ? bInCheckWhite : bInCheckBlack == true)
 	{
-		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile]->GetType() == KING && KingEscapesCheck(endTile)))
+		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile]->GetType() == KING && KingEscapesCheck(endTile)) && !MoveTakesCheckingPiece(endTile))
 		{
 			printf("Move does not escape check!\n");
 			return false;
@@ -367,6 +367,18 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 
 		checkLOS.push_back(target);
 		target += dir;
+	}
+}
+
+void Board::CalcKnightMovesOneDir(int startTile, int dir, int kingPos, std::vector<int>& checkLOS, std::vector<int>& attackingTiles)
+{
+	int target = startTile + dir;
+	AddNotBlocked(startTile, target, attackingTiles);
+	if (target == kingPos)
+	{
+		checkLOS.push_back(target);
+		AddCheckingPiece(startTile, checkLOS);
+		checkLOS.clear();
 	}
 }
 
@@ -493,7 +505,7 @@ void Board::CalcBishopMoves(int startTile)
 	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 
 	// bottom right
-	CalcSlidingMovesOneDir(startTile, LEFT, topLeft, bottomRight, kingPos, foundKing, checkLOS, attackingTiles);
+	CalcSlidingMovesOneDir(startTile, BOT_RIGHT, topLeft, bottomRight, kingPos, foundKing, checkLOS, attackingTiles);
 	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 	
 	AddToMap(startTile, attackingTiles);
@@ -503,129 +515,54 @@ void Board::CalcBishopMoves(int startTile)
 void Board::CalcKnightMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
-	int target;
+	std::vector<int> checkLOS;
+
+	PieceTeam team = pieces[startTile]->GetTeam();
+
+	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
 
 	if (TileInContainer(startTile, aFile))
 	{
-		// up up right
-		target = startTile + UP + UP + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// right right up
-		target = startTile + RIGHT + RIGHT + UP;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// right right down
-		target = startTile + RIGHT + RIGHT + DOWN;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down right
-		target = startTile + DOWN + DOWN + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + RIGHT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, RIGHT + RIGHT + UP, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, RIGHT + RIGHT + DOWN, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + RIGHT, kingPos, checkLOS, attackingTiles);
 	}
 	else if (TileInContainer(startTile, bFile))
 	{
-		// up up left
-		target = startTile + UP + UP + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
-		
-		// up up right
-		target = startTile + UP + UP + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// right right up
-		target = startTile + RIGHT + RIGHT + UP;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// right right down
-		target = startTile + RIGHT + RIGHT + DOWN;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down right
-		target = startTile + DOWN + DOWN + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down left
-		target = startTile + DOWN + DOWN + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + LEFT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + RIGHT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, RIGHT + RIGHT + UP, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, RIGHT + RIGHT + DOWN, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + RIGHT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + LEFT, kingPos, checkLOS, attackingTiles);
 	}
 	else if (TileInContainer(startTile, hFile))
 	{
-		// up up left
-		target = startTile + UP + UP + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// left left up
-		target = startTile + LEFT + LEFT + UP;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// left left down
-		target = startTile + LEFT + LEFT + DOWN;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down left
-		target = startTile + DOWN + DOWN + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + LEFT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, LEFT + LEFT + UP, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, LEFT + LEFT + DOWN, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + LEFT, kingPos, checkLOS, attackingTiles);
 	}
 	else if (TileInContainer(startTile, gFile))
 	{
-		// up up right
-		target = startTile + UP + UP + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// up up left
-		target = startTile + UP + UP + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// left left up
-		target = startTile + LEFT + LEFT + UP;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// left left down
-		target = startTile + LEFT + LEFT + DOWN;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down left
-		target = startTile + DOWN + DOWN + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down right
-		target = startTile + DOWN + DOWN + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + LEFT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + RIGHT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, LEFT + LEFT + UP, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, LEFT + LEFT + DOWN, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + RIGHT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + LEFT, kingPos, checkLOS, attackingTiles);
 	}
 	else
 	{
-		// up up right
-		target = startTile + UP + UP + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// right right up
-		target = startTile + RIGHT + RIGHT + UP;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// right right down
-		target = startTile + RIGHT + RIGHT + DOWN;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down right
-		target = startTile + DOWN + DOWN + RIGHT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// up up left
-		target = startTile + UP + UP + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// left left up
-		target = startTile + LEFT + LEFT + UP;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// left left down
-		target = startTile + LEFT + LEFT + DOWN;
-		AddNotBlocked(startTile, target, attackingTiles);
-
-		// down down left
-		target = startTile + DOWN + DOWN + LEFT;
-		AddNotBlocked(startTile, target, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + RIGHT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, RIGHT + RIGHT + UP, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, RIGHT + RIGHT + DOWN, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + RIGHT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, DOWN + DOWN + LEFT, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, LEFT + LEFT + DOWN, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, LEFT + LEFT + UP, kingPos, checkLOS, attackingTiles);
+		CalcKnightMovesOneDir(startTile, UP + UP + LEFT, kingPos, checkLOS, attackingTiles);
 	}
 
 	AddToMap(startTile, attackingTiles);
@@ -1066,6 +1003,17 @@ bool Board::KingEscapesCheck(int endTile)
 	}
 	
 	return !TileInContainer(endTile, currentTurn == WHITE ? checkingTilesBlack : checkingTilesWhite);
+}
+
+bool Board::MoveTakesCheckingPiece(int endTile)
+{
+	auto checkingPieces = currentTurn == WHITE ? checkingPiecesBlack : checkingPiecesWhite;
+	
+	if (checkingPieces.size() == 1 && endTile == checkingPieces[0]->tile)
+	{
+		return true;
+	}
+	return false;
 }
 
 void Board::AddCheckingPiece(int startTile, const std::vector<int>& checkLOS)
