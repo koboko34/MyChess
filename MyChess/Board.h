@@ -113,6 +113,9 @@ private:
 
 	bool CheckLegalMove(int startTile, int endTile);
 
+	void CalcSlidingMovesOneDir(int startTile, int min, int max, int dir, int kingPos, bool& foundKing, std::vector<int>& checkLOS, std::vector<int>& attackingTiles);
+	void HandleFoundMoves(int startTile, bool& foundKing, std::vector<int>& checkLOS, std::vector<int>& attackingTiles);
+
 	void CalcKingMoves(int startTile);
 	void CalcQueenMoves(int startTile);
 	void CalcBishopMoves(int startTile);

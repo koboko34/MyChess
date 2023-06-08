@@ -347,6 +347,43 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 	return TileInContainer(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 }
 
+void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int kingPos, bool& foundKing, std::vector<int>& checkLOS, std::vector<int>& attackingTiles)
+{
+	int target = startTile + dir;
+	while (min <= target && target <= max && !BlockedByOwnPiece(startTile, target))
+	{
+		if (BlockedByEnemyPiece(startTile, target))
+		{
+			checkLOS.push_back(target);
+			if (target == kingPos)
+			{
+				foundKing = true;
+				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+				target += dir;
+				continue;
+			}
+			break;
+		}
+
+		checkLOS.push_back(target);
+		target += dir;
+	}
+}
+
+void Board::HandleFoundMoves(int startTile, bool& foundKing, std::vector<int>& checkLOS, std::vector<int>& attackingTiles)
+{
+	if (!foundKing)
+	{
+		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
+	}
+	else
+	{
+		AddCheckingPiece(startTile, checkLOS);
+		foundKing = false;
+	}
+	checkLOS.clear();
+}
+
 void Board::CalcKingMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
@@ -431,6 +468,12 @@ void Board::CalcQueenMoves(int startTile)
 void Board::CalcBishopMoves(int startTile)
 {
 	std::vector<int> attackingTiles;
+	std::vector<int> checkLOS;
+
+	PieceTeam team = pieces[startTile]->GetTeam();
+
+	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
+	bool foundKing = false;
 
 	int topLeft = edgesFromTiles[startTile].topLeft;
 	int topRight = edgesFromTiles[startTile].topRight;
@@ -438,60 +481,20 @@ void Board::CalcBishopMoves(int startTile)
 	int bottomRight = edgesFromTiles[startTile].bottomRight;
 
 	// top left
-	int target = startTile + TOP_LEFT;
-	while (topLeft <= target && target <= bottomRight && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-			break;
-		}
+	CalcSlidingMovesOneDir(startTile, TOP_LEFT, topLeft, bottomRight, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 
-		attackingTiles.push_back(target);
-		target += TOP_LEFT;
-	}
-	
 	// top right
-	target = startTile + TOP_RIGHT;
-	while (topRight <= target && target <= bottomLeft && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-			break;
-		}
+	CalcSlidingMovesOneDir(startTile, TOP_RIGHT, topRight, bottomLeft, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 
-		attackingTiles.push_back(target);
-		target += TOP_RIGHT;
-	}
-	
 	// bottom left
-	target = startTile + BOT_LEFT;
-	while (topRight <= target && target <= bottomLeft && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-			break;
-		}
-
-		attackingTiles.push_back(target);
-		target += BOT_LEFT;
-	}
+	CalcSlidingMovesOneDir(startTile, BOT_LEFT, topRight, bottomLeft, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 
 	// bottom right
-	target = startTile + BOT_RIGHT;
-	while (topLeft <= target && target <= bottomRight && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			attackingTiles.push_back(target);
-			break;
-		}
-
-		attackingTiles.push_back(target);
-		target += BOT_RIGHT;
-	}
+	CalcSlidingMovesOneDir(startTile, LEFT, topLeft, bottomRight, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 	
 	AddToMap(startTile, attackingTiles);
 	
@@ -637,136 +640,27 @@ void Board::CalcRookMoves(int startTile)
 	
 	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
 	bool foundKing = false;
-	int target = startTile + DOWN;
 
 	int top = edgesFromTiles[startTile].top;
 	int bottom = edgesFromTiles[startTile].bottom;
-
-	// down
-	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			checkLOS.push_back(target);
-			if (target == kingPos)
-			{
-				foundKing = true;
-				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-				target += DOWN;
-				continue;
-			}
-			break;
-		}
-
-		checkLOS.push_back(target);
-		target += DOWN;
-	}
-	if (!foundKing)
-	{
-		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-	}
-	else
-	{
-		AddCheckingPiece(startTile, checkLOS);
-		foundKing = false;
-	}
-	checkLOS.clear();
-
-	// up
-	target = startTile + UP;
-	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			checkLOS.push_back(target);
-			if (target == kingPos)
-			{
-				foundKing = true;
-				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-				target += UP;
-				continue;
-			}
-			break;
-		}
-
-		checkLOS.push_back(target);
-		target += UP;
-	}
-	if (!foundKing)
-	{
-		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-	}
-	else
-	{
-		AddCheckingPiece(startTile, checkLOS);
-		foundKing = false;
-	}
-	checkLOS.clear();
-
 	int left = edgesFromTiles[startTile].left;
 	int right = edgesFromTiles[startTile].right;
 
-	// right
-	target = startTile + RIGHT;
-	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			checkLOS.push_back(target);
-			if (target == kingPos)
-			{
-				foundKing = true;
-				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-				target += RIGHT;
-				continue;
-			}
-			break;
-		}
+	// down
+	CalcSlidingMovesOneDir(startTile, DOWN, top, bottom, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 
-		checkLOS.push_back(target);
-		target += RIGHT;
-	}
-	if (!foundKing)
-	{
-		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-	}
-	else
-	{
-		AddCheckingPiece(startTile, checkLOS);
-		foundKing = false;
-	}
-	checkLOS.clear();
+	// up
+	CalcSlidingMovesOneDir(startTile, UP, top, bottom, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
+
+	// right
+	CalcSlidingMovesOneDir(startTile, RIGHT, left, right, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 
 	// left
-	target = startTile + LEFT;
-	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			checkLOS.push_back(target);
-			if (target == kingPos)
-			{
-				foundKing = true;
-				attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-				target += LEFT;
-				continue;
-			}
-			break;
-		}
-
-		checkLOS.push_back(target);
-		target += LEFT;
-	}
-	if (!foundKing)
-	{
-		attackingTiles.insert(attackingTiles.end(), checkLOS.begin(), checkLOS.end());
-	}
-	else
-	{
-		AddCheckingPiece(startTile, checkLOS);
-		foundKing = false;
-	}
-	checkLOS.clear();
+	CalcSlidingMovesOneDir(startTile, LEFT, left, right, kingPos, foundKing, checkLOS, attackingTiles);
+	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 	
 	AddToMap(startTile, attackingTiles);
 }
@@ -1117,10 +1011,7 @@ void Board::CalculateCheck()
 			bInCheckWhite = true;
 			printf("White in check!\n");
 
-			// CalcCheckVision(BLACK);
-
 			// if no legal moves, checkmate
-
 		}
 		else
 		{
@@ -1134,45 +1025,12 @@ void Board::CalculateCheck()
 			bInCheckBlack = true;
 			printf("Black in check!\n");
 
-			// CalcCheckVision(WHITE);
+			// if no legal moves, checkmate
 		}
 		else
 		{
 			bInCheckBlack = false;
 		}
-	}
-}
-
-// might not need this function anymore
-void Board::CalcCheckVision(PieceTeam team)
-{
-	std::vector<CheckingPiece*> checkingPieces;
-	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
-
-	for (size_t i = 0; i < 64; i++)
-	{
-		if (pieces[i] == nullptr)
-		{
-			continue;
-		}
-
-		if (TileInContainer(kingPos, team == WHITE ? attackMapWhite[i] : attackMapBlack[i]))
-		{
-			CheckingPiece* checkingPiece = new CheckingPiece();
-			checkingPiece->tile = i;
-			checkingPiece->pieceType = pieces[i]->GetType();
-			CalcCheckLOS(checkingPiece);
-			checkingPieces.push_back(checkingPiece);
-		}
-	}
-
-	if (team == WHITE)
-	{
-		checkingPiecesWhite = checkingPieces;
-	}
-	else
-	{
-		checkingPiecesBlack = checkingPieces;
 	}
 }
 
@@ -1218,140 +1076,6 @@ void Board::AddCheckingPiece(int startTile, const std::vector<int>& checkLOS)
 	checkingPiece->lineOfSight = checkLOS;
 	pieces[startTile]->GetTeam() == WHITE ? checkingPiecesWhite.push_back(checkingPiece) : checkingPiecesBlack.push_back(checkingPiece);
 }
-
-// might not need from here
-void Board::CalcCheckLOS(CheckingPiece* piece)
-{
-	switch (piece->pieceType)
-	{
-	case QUEEN:
-		CalcQueenLOS(piece);
-		break;
-	case BISHOP:
-		CalcBishopLOS(piece);
-		break;
-	case KNIGHT:
-		CalcKnightLOS(piece);
-		break;
-	case ROOK:
-		CalcRookLOS(piece);
-		break;
-	case PAWN:
-		CalcPawnLOS(piece);
-		break;
-	}
-
-	piece->lineOfSight.push_back(piece->tile);
-}
-
-void Board::CalcQueenLOS(CheckingPiece* piece)
-{
-}
-
-void Board::CalcBishopLOS(CheckingPiece* piece)
-{
-}
-
-void Board::CalcKnightLOS(CheckingPiece* piece)
-{
-}
-
-void Board::CalcRookLOS(CheckingPiece* piece)
-{
-	std::vector<int> attackingTiles;
-
-	int startTile = piece->tile;
-	int target = startTile + DOWN;
-
-	int top = edgesFromTiles[startTile].top;
-	int bottom = edgesFromTiles[startTile].bottom;
-
-	// down
-	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			if (pieces[target]->GetType() == KING)
-			{
-				attackingTiles.push_back(target);
-				piece->lineOfSight = attackingTiles;
-				return;
-			}
-			break;
-		}
-
-		attackingTiles.push_back(target);
-		target += DOWN;
-	}
-
-	// up
-	attackingTiles.clear();
-	target = startTile + UP;
-	while (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			if (pieces[target]->GetType() == KING)
-			{
-				attackingTiles.push_back(target);
-				piece->lineOfSight = attackingTiles;
-				return;
-			}
-			break;
-		}
-
-		attackingTiles.push_back(target);
-		target += UP;
-	}
-
-	int left = edgesFromTiles[startTile].left;
-	int right = edgesFromTiles[startTile].right;
-
-	// right
-	attackingTiles.clear();
-	target = startTile + RIGHT;
-	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			if (pieces[target]->GetType() == KING)
-			{
-				attackingTiles.push_back(target);
-				piece->lineOfSight = attackingTiles;
-				return;
-			}
-			break;
-		}
-
-		attackingTiles.push_back(target);
-		target += RIGHT;
-	}
-
-	// left
-	attackingTiles.clear();
-	target = startTile + LEFT;
-	while (left <= target && target <= right && !BlockedByOwnPiece(startTile, target))
-	{
-		if (BlockedByEnemyPiece(startTile, target))
-		{
-			if (pieces[target]->GetType() == KING)
-			{
-				attackingTiles.push_back(target);
-				piece->lineOfSight = attackingTiles;
-				return;
-			}
-			break;
-		}
-
-		attackingTiles.push_back(target);
-		target += LEFT;
-	}
-}
-
-void Board::CalcPawnLOS(CheckingPiece* piece)
-{
-}
-// to here
 
 void Board::ClearCheckingPieces()
 {
