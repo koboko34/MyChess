@@ -54,6 +54,16 @@ void Board::Init(unsigned int width, unsigned int height)
 
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 
+	int kingsSet = 0;
+	for (size_t i = 0; kingsSet < 2 && i < 64; i++)
+	{
+		if (pieces[i] != nullptr && pieces[i]->GetType() == KING)
+		{
+			SetKingPos(i);			
+			kingsSet++;
+		}
+	}
+
 	PrepEdges();
 	CalculateEdges();
 	CalculateMoves();
@@ -350,7 +360,7 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int kingPos, bool& foundKing, std::vector<int>& checkLOS, std::vector<int>& attackingTiles)
 {
 	int target = startTile + dir;
-	while (min <= target && target <= max && !BlockedByOwnPiece(startTile, target))
+	while (min <= target && target <= max)
 	{
 		if (BlockedByEnemyPiece(startTile, target))
 		{
@@ -365,6 +375,12 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 			break;
 		}
 
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+			break;
+		}
+
 		checkLOS.push_back(target);
 		target += dir;
 	}
@@ -373,6 +389,12 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 void Board::CalcKnightMovesOneDir(int startTile, int dir, int kingPos, std::vector<int>& checkLOS, std::vector<int>& attackingTiles)
 {
 	int target = startTile + dir;
+	if (BlockedByOwnPiece(startTile, target))
+	{
+			AddProtectedPieceToSet(target);
+			return;
+	}
+
 	AddNotBlocked(startTile, target, attackingTiles);
 	if (target == kingPos)
 	{
@@ -411,43 +433,115 @@ void Board::CalcKingMoves(int startTile)
 
 	// down
 	int target = startTile + DOWN;
-	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (top <= target && target <= bottom)
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 	
 	// up
 	target = startTile + UP;
-	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (top <= target && target <= bottom)
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	// left
 	target = startTile + LEFT;
-	if (left <= target && target <= right && startTile != left && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (left <= target && target <= right && startTile != left)
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	// right
 	target = startTile + RIGHT;
-	if (left <= target && target <= right && startTile != right && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (left <= target && target <= right && startTile != right)
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	// top left
 	target = startTile + TOP_LEFT;
-	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, eighthRank))
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	// top right
 	target = startTile + TOP_RIGHT;
-	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, eighthRank) && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, eighthRank))
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	// bottom left
 	target = startTile + BOT_LEFT;
-	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, firstRank))
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	// bottom right
 	target = startTile + BOT_RIGHT;
-	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, firstRank) && !BlockedByOwnPiece(startTile, target))
-		attackingTiles.push_back(target);
+	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, firstRank))
+	{
+		if (BlockedByOwnPiece(startTile, target))
+		{
+			AddProtectedPieceToSet(target);
+		}
+		else
+		{
+			attackingTiles.push_back(target);
+		}
+	}
 
 	if (pieces[startTile]->bMoved == false)
 	{
@@ -624,21 +718,39 @@ void Board::CalcPawnMoves(int startTile)
 	// take on diagonal, local forward right
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_RIGHT * teamDir;
-	if (InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
-		attackingTiles.push_back(target);
+	if (InMapRange(target) && pieces[target])
+	{
+		if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+		{
+			attackingTiles.push_back(target);
+		}
+		else
+		{
+			AddProtectedPieceToSet(target);
+		}
+	}
 
 	// take on diagonal, local forward left
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_LEFT * teamDir;
-	if (InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
-		attackingTiles.push_back(target);
+	if (InMapRange(target) && pieces[target])
+	{
+		if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+		{
+			attackingTiles.push_back(target);
+		}
+		else
+		{
+			AddProtectedPieceToSet(target);
+		}
+	}
 
 	AddToMap(startTile, attackingTiles);
 }
 
 bool Board::BlockedByOwnPiece(int startTile, int target) const
 {
-	return pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
+	return InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
 }
 
 bool Board::BlockedByEnemyPiece(int startTile, int target) const
@@ -815,6 +927,8 @@ void Board::TakeByEnPassant()
 
 void Board::CalculateMoves()
 {
+	attackSetWhite.clear();
+	attackSetBlack.clear();
 	ClearCheckingPieces();
 	
 	for (size_t i = 0; i < 64; i++)
@@ -831,14 +945,7 @@ void Board::CalculateMoves()
 		{
 		case KING:
 			CalcKingMoves(i);
-			if (pieces[i]->GetTeam() == WHITE)
-			{
-				kingPosWhite = i;
-			}
-			else
-			{
-				kingPosBlack = i;
-			}
+			SetKingPos(i);
 			break;
 		case QUEEN:
 			CalcQueenMoves(i);
@@ -864,9 +971,6 @@ void Board::CalculateMoves()
 
 void Board::CalculateAttacks()
 {
-	attackSetWhite.clear();
-	attackSetBlack.clear();
-
 	for (size_t tile = 0; tile < 64; tile++)
 	{
 		if (attackMapWhite[tile].empty())
@@ -936,6 +1040,18 @@ void Board::AddToMap(int startTile, std::vector<int> validMoves)
 		{
 			attackMapBlack[startTile].push_back(i);
 		}
+	}
+}
+
+void Board::SetKingPos(int target)
+{
+	if (pieces[target]->GetTeam() == WHITE)
+	{
+		kingPosWhite = target;
+	}
+	else
+	{
+		kingPosBlack = target;
 	}
 }
 
@@ -1023,6 +1139,18 @@ void Board::AddCheckingPiece(int startTile, const std::vector<int>& checkLOS)
 	checkingPiece->pieceType = pieces[startTile]->GetType();
 	checkingPiece->lineOfSight = checkLOS;
 	pieces[startTile]->GetTeam() == WHITE ? checkingPiecesWhite.push_back(checkingPiece) : checkingPiecesBlack.push_back(checkingPiece);
+}
+
+void Board::AddProtectedPieceToSet(int target)
+{
+	if (pieces[target]->GetTeam() == WHITE)
+	{
+		attackSetWhite.insert(target);
+	}
+	else
+	{
+		attackSetBlack.insert(target);
+	}
 }
 
 void Board::ClearCheckingPieces()

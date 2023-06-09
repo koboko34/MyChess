@@ -155,6 +155,7 @@ private:
 
 	int kingPosWhite;
 	int kingPosBlack;
+	void SetKingPos(int target);
 
 	bool bInCheckWhite;
 	bool bInCheckBlack;
@@ -172,6 +173,7 @@ private:
 	};
 
 	void AddCheckingPiece(int startTile, const std::vector<int>& checkLOS);
+	void AddProtectedPieceToSet(int target);
 
 	void CalcCheckLOS(CheckingPiece* Piece);
 	void CalcQueenLOS(CheckingPiece* piece);
