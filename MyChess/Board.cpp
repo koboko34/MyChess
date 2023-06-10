@@ -723,6 +723,12 @@ void Board::CalcPawnMoves(int startTile)
 		if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 		{
 			attackingTiles.push_back(target);
+			if (pieces[target]->GetType() == KING)
+			{
+				std::vector<int> checkLOS;
+				checkLOS.push_back(target);
+				AddCheckingPiece(startTile, checkLOS);
+			}
 		}
 		else
 		{
@@ -738,6 +744,12 @@ void Board::CalcPawnMoves(int startTile)
 		if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 		{
 			attackingTiles.push_back(target);
+			if (pieces[target]->GetType() == KING)
+			{
+				std::vector<int> checkLOS;
+				checkLOS.push_back(target);
+				AddCheckingPiece(startTile, checkLOS);
+			}
 		}
 		else
 		{
