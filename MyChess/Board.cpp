@@ -434,7 +434,7 @@ void Board::CalcKingMoves(int startTile)
 	// down
 	int target = startTile + DOWN;
 	if (top <= target && target <= bottom)
-	{
+	{		
 		if (BlockedByOwnPiece(startTile, target))
 		{
 			AddProtectedPieceToSet(target);
@@ -1076,7 +1076,16 @@ void Board::CalculateCheck()
 			bInCheckWhite = true;
 			printf("White in check!\n");
 
-			// if no legal moves, checkmate
+			// instead of clearing moves, keep moves which block check or let king escape check
+			// ClearMoves(WHITE);
+			if (checkingPiecesBlack.size() >= 2 && !CanKingEscape(kingPosWhite))
+			{
+				GameOver(BLACK);
+			}
+			else if (!CanKingEscape(kingPosWhite) && CanBlockCheck(kingPosWhite))
+			{
+
+			}
 		}
 		else
 		{
@@ -1099,6 +1108,24 @@ void Board::CalculateCheck()
 	}
 }
 
+void Board::ClearMoves(int team)
+{
+	if (team == WHITE)
+	{
+		for (std::vector<int> attacks : attackMapWhite)
+		{
+			attacks.clear();
+		}
+	}
+	else if (team == BLACK)
+	{
+		for (std::vector<int> attacks : attackMapBlack)
+		{
+			attacks.clear();
+		}
+	}
+}
+
 bool Board::MoveBlocksCheck(int startTile, int endTile)
 {
 	int size = currentTurn == WHITE ? checkingPiecesBlack.size() : checkingPiecesWhite.size();
@@ -1108,6 +1135,26 @@ bool Board::MoveBlocksCheck(int startTile, int endTile)
 		return pieces[startTile]->GetType() != KING && TileInContainer(endTile, currentTurn == WHITE ? checkingPiecesBlack[0]->lineOfSight : checkingPiecesWhite[0]->lineOfSight);
 	}
 	return false;
+}
+
+bool Board::CanBlockCheck(int kingPos)
+{
+	bool bCanBlockCheck = false;
+	std::vector<int> validMoves[64];
+
+
+	// find valid moves from attack map
+
+	if (currentTurn == WHITE)
+	{
+
+	}
+	else
+	{
+
+	}
+
+	return bCanBlockCheck;
 }
 
 bool Board::KingEscapesCheck(int endTile)
@@ -1131,6 +1178,74 @@ bool Board::KingEscapesCheck(int endTile)
 	}
 	
 	return !TileInContainer(endTile, currentTurn == WHITE ? checkingTilesBlack : checkingTilesWhite);
+}
+
+bool Board::CanKingEscape(int startTile)
+{
+	bool bCanEscape = false;
+	
+	int top = edgesFromTiles[startTile].top;
+	int bottom = edgesFromTiles[startTile].bottom;
+	int left = edgesFromTiles[startTile].left;
+	int right = edgesFromTiles[startTile].right;
+	int topLeft = edgesFromTiles[startTile].topLeft;
+	int topRight = edgesFromTiles[startTile].topRight;
+	int bottomLeft = edgesFromTiles[startTile].bottomLeft;
+	int bottomRight = edgesFromTiles[startTile].bottomRight;
+
+	int target = startTile + DOWN;
+	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+
+	target = startTile + UP;
+	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+
+	target = startTile + LEFT;
+	if (left <= target && target <= right && startTile != left && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+
+	target = startTile + RIGHT;
+	if (left <= target && target <= right && startTile != right && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+
+	target = startTile + TOP_LEFT;
+	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, eighthRank) &&
+		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+
+	target = startTile + TOP_RIGHT;
+	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, eighthRank) &&
+		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+
+	target = startTile + BOT_LEFT;
+	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, firstRank) &&
+		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+
+	target = startTile + BOT_RIGHT;
+	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, firstRank) &&
+		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
+	{
+		bCanEscape = true;
+	}
+	
+	return bCanEscape;
 }
 
 bool Board::MoveTakesCheckingPiece(int endTile)
@@ -1184,6 +1299,8 @@ void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
 	bGameOver = true;
+
+	printf("%s wins!", winner == WHITE ? "White" : "Black");
 }
 
 void Board::SetupBoardFromFEN(std::string fen)

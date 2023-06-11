@@ -160,9 +160,15 @@ private:
 	bool bInCheckWhite;
 	bool bInCheckBlack;
 	void CalculateCheck();
+	void ClearMoves(int team);
+
+	std::vector<int> validCheckMovesWhite[64];
+	std::vector<int> validCheckMovesBlack[64];
 
 	bool MoveBlocksCheck(int startTile, int endTile);
+	bool CanBlockCheck(int kingPos);
 	bool KingEscapesCheck(int endTile);
+	bool CanKingEscape(int startTile);
 	bool MoveTakesCheckingPiece(int endTile);
 
 	struct CheckingPiece
