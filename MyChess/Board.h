@@ -161,15 +161,10 @@ private:
 	bool bInCheckBlack;
 	void CalculateCheck();
 	void ClearMoves(int team);
+	void SetCheckMoves();
 
-	std::vector<int> validCheckMovesWhite[64];
-	std::vector<int> validCheckMovesBlack[64];
-
-	bool MoveBlocksCheck(int startTile, int endTile);
-	bool CanBlockCheck(int kingPos);
-	bool KingEscapesCheck(int endTile);
-	bool CanKingEscape(int startTile);
-	bool MoveTakesCheckingPiece(int endTile);
+	// std::vector<int> validCheckMovesWhite[64];
+	// std::vector<int> validCheckMovesBlack[64];
 
 	struct CheckingPiece
 	{
@@ -178,15 +173,19 @@ private:
 		std::vector<int> lineOfSight;
 	};
 
+	bool MoveBlocksCheck(int startTile, int endTile);
+	bool CanBlockCheck(int kingPos);
+	bool KingEscapesCheck(int endTile);
+	bool CanKingEscape(int startTile);
+	bool MoveTakesCheckingPiece(int endTile);
+	bool CanTakeCheckingPiece(int kingPos);
+
+	std::vector<int> validCheckMoves[64];
+	int CalcValidCheckMoves();
+	void ClearValidCheckMoves();
+
 	void AddCheckingPiece(int startTile, const std::vector<int>& checkLOS);
 	void AddProtectedPieceToSet(int target);
-
-	void CalcCheckLOS(CheckingPiece* Piece);
-	void CalcQueenLOS(CheckingPiece* piece);
-	void CalcBishopLOS(CheckingPiece* piece);
-	void CalcKnightLOS(CheckingPiece* piece);
-	void CalcRookLOS(CheckingPiece* piece);
-	void CalcPawnLOS(CheckingPiece* piece);
 
 	std::vector<CheckingPiece*> checkingPiecesWhite;
 	std::vector<CheckingPiece*> checkingPiecesBlack;

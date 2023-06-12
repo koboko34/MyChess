@@ -1069,23 +1069,38 @@ void Board::SetKingPos(int target)
 
 void Board::CalculateCheck()
 {
+	int kingPos = WHITE ? kingPosWhite : kingPosBlack;
+	
 	if (currentTurn == WHITE)
 	{
-		if (TileInContainer(kingPosWhite, attackSetBlack))
+		if (TileInContainer(kingPos, attackSetBlack))
 		{
 			bInCheckWhite = true;
 			printf("White in check!\n");
+			int moveCount = CalcValidCheckMoves();
 
-			// instead of clearing moves, keep moves which block check or let king escape check
-			// ClearMoves(WHITE);
-			if (checkingPiecesBlack.size() >= 2 && !CanKingEscape(kingPosWhite))
+			if (moveCount <= 0)
 			{
 				GameOver(BLACK);
+				return;
 			}
-			else if (!CanKingEscape(kingPosWhite) && CanBlockCheck(kingPosWhite))
-			{
 
+			ClearMoves(WHITE);
+			SetCheckMoves();
+
+			/*
+			// instead of clearing moves, keep moves which block check or let king escape check
+			if (checkingPiecesBlack.size() >= 2 && !CanKingEscape(kingPos))
+			{
+				GameOver(BLACK);
+				return;
 			}
+			else if (!CanKingEscape(kingPos) && !CanBlockCheck(kingPos) && !CanTakeCheckingPiece(kingPos))
+			{
+				GameOver(BLACK);
+				return;
+			}
+			*/
 		}
 		else
 		{
@@ -1094,12 +1109,22 @@ void Board::CalculateCheck()
 	}
 	else
 	{
-		if (TileInContainer(kingPosBlack, attackSetWhite))
+		if (TileInContainer(kingPos, attackSetWhite))
 		{
 			bInCheckBlack = true;
 			printf("Black in check!\n");
 
-			// if no legal moves, checkmate
+			// instead of clearing moves, keep moves which block check or let king escape check
+			if (checkingPiecesWhite.size() >= 2 && !CanKingEscape(kingPos))
+			{
+				GameOver(WHITE);
+				return;
+			}
+			else if (!CanKingEscape(kingPos) && !CanBlockCheck(kingPos) && !CanTakeCheckingPiece(kingPos))
+			{
+				GameOver(WHITE);
+				return;
+			}
 		}
 		else
 		{
@@ -1126,6 +1151,20 @@ void Board::ClearMoves(int team)
 	}
 }
 
+void Board::SetCheckMoves()
+{
+	if (currentTurn == WHITE)
+	{
+		ClearMoves(WHITE);
+		std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
+	}
+	else
+	{
+		ClearMoves(BLACK);
+		std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
+	}
+}
+
 bool Board::MoveBlocksCheck(int startTile, int endTile)
 {
 	int size = currentTurn == WHITE ? checkingPiecesBlack.size() : checkingPiecesWhite.size();
@@ -1142,19 +1181,70 @@ bool Board::CanBlockCheck(int kingPos)
 	bool bCanBlockCheck = false;
 	std::vector<int> validMoves[64];
 
-
-	// find valid moves from attack map
-
+	std::set<int> checkingTiles;
 	if (currentTurn == WHITE)
 	{
-
+		for (CheckingPiece* piece : checkingPiecesBlack)
+		{
+			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
+		}
 	}
 	else
 	{
-
+		for (CheckingPiece* piece : checkingPiecesWhite)
+		{
+			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
+		}
 	}
 
-	return bCanBlockCheck;
+	if (currentTurn == WHITE)
+	{
+		for (size_t i = 0; i < 64; i++)
+		{
+			for (int tile : attackMapWhite[i])
+			{
+				if (TileInContainer(tile, checkingTiles))
+				{
+					bCanBlockCheck = true;
+					validMoves[i].push_back(tile);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (size_t i = 0; i < 64; i++)
+		{
+			for (int tile : attackMapBlack[i])
+			{
+				if (TileInContainer(tile, checkingTiles))
+				{
+					bCanBlockCheck = true;
+					validMoves[i].push_back(tile);
+				}
+			}
+		}
+	}
+
+	// find valid moves from attack map
+
+	if (!bCanBlockCheck)
+	{
+		return false;
+	}
+
+	if (currentTurn == WHITE)
+	{
+		ClearMoves(WHITE);
+		std::copy(std::begin(validMoves), std::end(validMoves), std::begin(attackMapWhite));
+	}
+	else
+	{
+		ClearMoves(BLACK);
+		std::copy(std::begin(validMoves), std::end(validMoves), std::begin(attackMapBlack));
+	}
+
+	return true;
 }
 
 bool Board::KingEscapesCheck(int endTile)
@@ -1295,6 +1385,34 @@ void Board::ClearCheckingPieces()
 	}
 }
 
+bool Board::CanTakeCheckingPiece(int kingPos)
+{
+	return false;
+}
+
+int Board::CalcValidCheckMoves()
+{
+	ClearValidCheckMoves();
+
+	int moveCount = 0;
+	
+	// king escapes
+
+	// piece blocks
+
+	// checking piece is taken
+
+	return moveCount;
+}
+
+void Board::ClearValidCheckMoves()
+{
+	for (std::vector<int> moves : validCheckMoves)
+	{
+		moves.clear();
+	}
+}
+
 void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
@@ -1302,6 +1420,7 @@ void Board::GameOver(int winningTeam)
 
 	printf("%s wins!", winner == WHITE ? "White" : "Black");
 }
+
 
 void Board::SetupBoardFromFEN(std::string fen)
 {
