@@ -1069,7 +1069,7 @@ void Board::SetKingPos(int target)
 
 void Board::CalculateCheck()
 {
-	int kingPos = WHITE ? kingPosWhite : kingPosBlack;
+	int kingPos = currentTurn == WHITE ? kingPosWhite : kingPosBlack;
 	
 	if (currentTurn == WHITE)
 	{
@@ -1079,6 +1079,8 @@ void Board::CalculateCheck()
 			printf("White in check!\n");
 			int moveCount = CalcValidCheckMoves();
 
+			printf("%i moves possible!\n", moveCount);
+
 			if (moveCount <= 0)
 			{
 				GameOver(BLACK);
@@ -1087,20 +1089,6 @@ void Board::CalculateCheck()
 
 			ClearMoves(WHITE);
 			SetCheckMoves();
-
-			/*
-			// instead of clearing moves, keep moves which block check or let king escape check
-			if (checkingPiecesBlack.size() >= 2 && !CanKingEscape(kingPos))
-			{
-				GameOver(BLACK);
-				return;
-			}
-			else if (!CanKingEscape(kingPos) && !CanBlockCheck(kingPos) && !CanTakeCheckingPiece(kingPos))
-			{
-				GameOver(BLACK);
-				return;
-			}
-			*/
 		}
 		else
 		{
@@ -1113,18 +1101,18 @@ void Board::CalculateCheck()
 		{
 			bInCheckBlack = true;
 			printf("Black in check!\n");
+			int moveCount = CalcValidCheckMoves();
 
-			// instead of clearing moves, keep moves which block check or let king escape check
-			if (checkingPiecesWhite.size() >= 2 && !CanKingEscape(kingPos))
+			printf("%i moves possible!\n", moveCount);
+
+			if (moveCount <= 0)
 			{
-				GameOver(WHITE);
+				GameOver(BLACK);
 				return;
 			}
-			else if (!CanKingEscape(kingPos) && !CanBlockCheck(kingPos) && !CanTakeCheckingPiece(kingPos))
-			{
-				GameOver(WHITE);
-				return;
-			}
+
+			ClearMoves(BLACK);
+			SetCheckMoves();
 		}
 		else
 		{
@@ -1176,10 +1164,9 @@ bool Board::MoveBlocksCheck(int startTile, int endTile)
 	return false;
 }
 
-bool Board::CanBlockCheck(int kingPos)
+bool Board::CanBlockCheck(int kingPos, int& moveCount)
 {
 	bool bCanBlockCheck = false;
-	std::vector<int> validMoves[64];
 
 	std::set<int> checkingTiles;
 	if (currentTurn == WHITE)
@@ -1203,10 +1190,11 @@ bool Board::CanBlockCheck(int kingPos)
 		{
 			for (int tile : attackMapWhite[i])
 			{
-				if (TileInContainer(tile, checkingTiles))
+				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
 				{
 					bCanBlockCheck = true;
-					validMoves[i].push_back(tile);
+					moveCount++;
+					validCheckMoves[i].push_back(tile);
 				}
 			}
 		}
@@ -1217,34 +1205,35 @@ bool Board::CanBlockCheck(int kingPos)
 		{
 			for (int tile : attackMapBlack[i])
 			{
-				if (TileInContainer(tile, checkingTiles))
+				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
 				{
 					bCanBlockCheck = true;
-					validMoves[i].push_back(tile);
+					moveCount++;
+					validCheckMoves[i].push_back(tile);
 				}
 			}
 		}
 	}
 
-	// find valid moves from attack map
+	printf("Move count after CanBlockCheck(): %i\n", moveCount);
 
-	if (!bCanBlockCheck)
+	// does copying here remove the king move calculated prior?
+	if (bCanBlockCheck)
 	{
-		return false;
+		if (currentTurn == WHITE)
+		{
+			ClearMoves(WHITE);
+			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
+		}
+		else
+		{
+			ClearMoves(BLACK);
+			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
+		}
+		return true;
 	}
 
-	if (currentTurn == WHITE)
-	{
-		ClearMoves(WHITE);
-		std::copy(std::begin(validMoves), std::end(validMoves), std::begin(attackMapWhite));
-	}
-	else
-	{
-		ClearMoves(BLACK);
-		std::copy(std::begin(validMoves), std::end(validMoves), std::begin(attackMapBlack));
-	}
-
-	return true;
+	return false;
 }
 
 bool Board::KingEscapesCheck(int endTile)
@@ -1270,10 +1259,8 @@ bool Board::KingEscapesCheck(int endTile)
 	return !TileInContainer(endTile, currentTurn == WHITE ? checkingTilesBlack : checkingTilesWhite);
 }
 
-bool Board::CanKingEscape(int startTile)
+bool Board::CanKingEscape(int startTile, int& moveCount)
 {
-	bool bCanEscape = false;
-	
 	int top = edgesFromTiles[startTile].top;
 	int bottom = edgesFromTiles[startTile].bottom;
 	int left = edgesFromTiles[startTile].left;
@@ -1286,56 +1273,66 @@ bool Board::CanKingEscape(int startTile)
 	int target = startTile + DOWN;
 	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
 
 	target = startTile + UP;
 	if (top <= target && target <= bottom && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
 
 	target = startTile + LEFT;
 	if (left <= target && target <= right && startTile != left && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
 
 	target = startTile + RIGHT;
 	if (left <= target && target <= right && startTile != right && !BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
 
 	target = startTile + TOP_LEFT;
 	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, eighthRank) &&
 		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
 
 	target = startTile + TOP_RIGHT;
 	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, eighthRank) &&
 		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
 
 	target = startTile + BOT_LEFT;
 	if (topRight <= target && target <= bottomLeft && !TileInContainer(startTile, aFile) && !TileInContainer(startTile, firstRank) &&
 		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
 
 	target = startTile + BOT_RIGHT;
 	if (topLeft <= target && target <= bottomRight && !TileInContainer(startTile, hFile) && !TileInContainer(startTile, firstRank) &&
 		!BlockedByOwnPiece(startTile, target) && KingEscapesCheck(target))
 	{
-		bCanEscape = true;
+		validCheckMoves[startTile].push_back(target);
+		moveCount++;
 	}
+
+	printf("Move count after CanKingEscape(): %i\n", moveCount);
 	
-	return bCanEscape;
+	return moveCount > 0;
 }
 
 bool Board::MoveTakesCheckingPiece(int endTile)
@@ -1385,22 +1382,85 @@ void Board::ClearCheckingPieces()
 	}
 }
 
-bool Board::CanTakeCheckingPiece(int kingPos)
+bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 {
+	// exclude taking by king as this is calculated in CanKingEscape()
+
+	bool bCanTakeCheckingPiece = false;
+	int checkPiecePos;
+	if (currentTurn == WHITE && checkingPiecesBlack.size() > 0)
+	{
+		checkPiecePos = checkingPiecesBlack[0]->tile;
+	}
+	else if (currentTurn == BLACK && checkingPiecesWhite.size() > 0)
+	{
+		checkPiecePos = checkingPiecesWhite[0]->tile;
+	}
+
+	// find moves where own piece attacks the checking piece
+	if (currentTurn == WHITE)
+	{
+		for (size_t i = 0; i < 64; i++)
+		{
+			if (TileInContainer(checkPiecePos, attackMapWhite[i]) && pieces[i] && pieces[i]->GetType() != KING)
+			{
+				bCanTakeCheckingPiece = true;
+				moveCount++;
+				validCheckMoves[i].push_back(checkPiecePos);
+			}
+		}
+	}
+	else
+	{
+		for (size_t i = 0; i < 64; i++)
+		{
+			if (TileInContainer(checkPiecePos, attackMapBlack[i]) && pieces[i] && pieces[i]->GetType() != KING)
+			{
+				bCanTakeCheckingPiece = true;
+				moveCount++;
+				validCheckMoves[i].push_back(checkPiecePos);
+			}
+		}
+	}
+
+	// does copying here remove the king move calculated prior?
+	if (bCanTakeCheckingPiece)
+	{
+		if (currentTurn == WHITE)
+		{
+			ClearMoves(WHITE);
+			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
+		}
+		else
+		{
+			ClearMoves(BLACK);
+			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
+		}
+		return true;
+	}
+
 	return false;
 }
 
 int Board::CalcValidCheckMoves()
-{
+{	
 	ClearValidCheckMoves();
 
+	int kingPos = currentTurn == WHITE ? kingPosWhite : kingPosBlack;
 	int moveCount = 0;
 	
-	// king escapes
+	CanKingEscape(kingPos, moveCount);
 
-	// piece blocks
-
-	// checking piece is taken
+	if (currentTurn == WHITE && checkingPiecesBlack.size() == 1)
+	{
+		CanBlockCheck(kingPos, moveCount);
+		CanTakeCheckingPiece(kingPos, moveCount);
+	}
+	else if (currentTurn == BLACK && checkingPiecesWhite.size() == 1)
+	{
+		CanBlockCheck(kingPos, moveCount);
+		CanTakeCheckingPiece(kingPos, moveCount);
+	}
 
 	return moveCount;
 }

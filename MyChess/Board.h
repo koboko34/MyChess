@@ -174,11 +174,11 @@ private:
 	};
 
 	bool MoveBlocksCheck(int startTile, int endTile);
-	bool CanBlockCheck(int kingPos);
+	bool CanBlockCheck(int kingPos, int& moveCount);
 	bool KingEscapesCheck(int endTile);
-	bool CanKingEscape(int startTile);
+	bool CanKingEscape(int startTile, int& moveCount);
 	bool MoveTakesCheckingPiece(int endTile);
-	bool CanTakeCheckingPiece(int kingPos);
+	bool CanTakeCheckingPiece(int kingPos, int& moveCount);
 
 	std::vector<int> validCheckMoves[64];
 	int CalcValidCheckMoves();
