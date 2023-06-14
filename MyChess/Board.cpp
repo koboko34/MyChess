@@ -364,6 +364,11 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 	{
 		if (BlockedByEnemyPiece(startTile, target))
 		{
+			if (foundKing)
+			{
+				return;
+			}
+
 			checkLOS.push_back(target);
 			if (target == kingPos)
 			{
@@ -372,16 +377,24 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 				target += dir;
 				continue;
 			}
-			break;
+			return;
 		}
 
 		if (BlockedByOwnPiece(startTile, target))
 		{
 			AddProtectedPieceToSet(target);
-			break;
+			return;
 		}
 
-		checkLOS.push_back(target);
+		if (foundKing)
+		{
+			kingXRay.insert(target);
+		}
+		else
+		{
+			checkLOS.push_back(target);
+		}
+
 		target += dir;
 	}
 }
@@ -718,42 +731,56 @@ void Board::CalcPawnMoves(int startTile)
 	// take on diagonal, local forward right
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_RIGHT * teamDir;
-	if (InMapRange(target) && pieces[target])
+	if (InMapRange(target))
 	{
-		if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+		if (pieces[target])
 		{
-			attackingTiles.push_back(target);
-			if (pieces[target]->GetType() == KING)
+			if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 			{
-				std::vector<int> checkLOS;
-				checkLOS.push_back(target);
-				AddCheckingPiece(startTile, checkLOS);
+				attackingTiles.push_back(target);
+				if (pieces[target]->GetType() == KING)
+				{
+					std::vector<int> checkLOS;
+					checkLOS.push_back(target);
+					AddCheckingPiece(startTile, checkLOS);
+				}
+			}
+			else
+			{
+				AddProtectedPieceToSet(target);
 			}
 		}
 		else
 		{
-			AddProtectedPieceToSet(target);
+			AddToAttackSet(startTile, target);
 		}
 	}
 
 	// take on diagonal, local forward left
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_LEFT * teamDir;
-	if (InMapRange(target) && pieces[target])
+	if (InMapRange(target))
 	{
-		if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
+		if (pieces[target])
 		{
-			attackingTiles.push_back(target);
-			if (pieces[target]->GetType() == KING)
+			if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 			{
-				std::vector<int> checkLOS;
-				checkLOS.push_back(target);
-				AddCheckingPiece(startTile, checkLOS);
+				attackingTiles.push_back(target);
+				if (pieces[target]->GetType() == KING)
+				{
+					std::vector<int> checkLOS;
+					checkLOS.push_back(target);
+					AddCheckingPiece(startTile, checkLOS);
+				}
+			}
+			else
+			{
+				AddProtectedPieceToSet(target);
 			}
 		}
 		else
 		{
-			AddProtectedPieceToSet(target);
+			AddToAttackSet(startTile, target);
 		}
 	}
 
@@ -942,6 +969,7 @@ void Board::CalculateMoves()
 	attackSetWhite.clear();
 	attackSetBlack.clear();
 	ClearCheckingPieces();
+	kingXRay.clear();
 	
 	for (size_t i = 0; i < 64; i++)
 	{
@@ -993,7 +1021,7 @@ void Board::CalculateAttacks()
 		{
 			for (int i : attackMapWhite[tile])
 			{
-				if (i != tile - 8 && i != tile - 16)
+				if (i != tile - 8 && i != tile - 16 && i != tile + 8 && i != tile + 16)
 				{
 					attackSetWhite.insert(i);
 				}
@@ -1017,7 +1045,7 @@ void Board::CalculateAttacks()
 		{
 			for (int i : attackMapBlack[tile])
 			{
-				if (i != tile - 8 && i != tile - 16)
+				if (i != tile - 8 && i != tile - 16 && i != tile + 8 && i != tile + 16)
 				{
 					attackSetBlack.insert(i);
 				}
@@ -1029,6 +1057,18 @@ void Board::CalculateAttacks()
 		{
 			attackSetBlack.insert(i);
 		}
+	}
+}
+
+void Board::AddToAttackSet(int startTile, int target)
+{
+	if (pieces[startTile]->GetTeam() == WHITE)
+	{
+		attackSetWhite.insert(target);
+	}
+	else
+	{
+		attackSetBlack.insert(target);
 	}
 }
 
@@ -1153,110 +1193,17 @@ void Board::SetCheckMoves()
 	}
 }
 
-bool Board::MoveBlocksCheck(int startTile, int endTile)
-{
-	int size = currentTurn == WHITE ? checkingPiecesBlack.size() : checkingPiecesWhite.size();
-	
-	if (size == 1)
-	{
-		return pieces[startTile]->GetType() != KING && TileInContainer(endTile, currentTurn == WHITE ? checkingPiecesBlack[0]->lineOfSight : checkingPiecesWhite[0]->lineOfSight);
-	}
-	return false;
-}
-
-bool Board::CanBlockCheck(int kingPos, int& moveCount)
-{
-	bool bCanBlockCheck = false;
-
-	std::set<int> checkingTiles;
-	if (currentTurn == WHITE)
-	{
-		for (CheckingPiece* piece : checkingPiecesBlack)
-		{
-			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
-		}
-	}
-	else
-	{
-		for (CheckingPiece* piece : checkingPiecesWhite)
-		{
-			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
-		}
-	}
-
-	if (currentTurn == WHITE)
-	{
-		for (size_t i = 0; i < 64; i++)
-		{
-			for (int tile : attackMapWhite[i])
-			{
-				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
-				{
-					bCanBlockCheck = true;
-					moveCount++;
-					validCheckMoves[i].push_back(tile);
-				}
-			}
-		}
-	}
-	else
-	{
-		for (size_t i = 0; i < 64; i++)
-		{
-			for (int tile : attackMapBlack[i])
-			{
-				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
-				{
-					bCanBlockCheck = true;
-					moveCount++;
-					validCheckMoves[i].push_back(tile);
-				}
-			}
-		}
-	}
-
-	printf("Move count after CanBlockCheck(): %i\n", moveCount);
-
-	// does copying here remove the king move calculated prior?
-	if (bCanBlockCheck)
-	{
-		if (currentTurn == WHITE)
-		{
-			ClearMoves(WHITE);
-			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
-		}
-		else
-		{
-			ClearMoves(BLACK);
-			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
-		}
-		return true;
-	}
-
-	return false;
-}
-
 bool Board::KingEscapesCheck(int endTile)
 {
-	std::vector<int> checkingTilesBlack;
-	std::vector<int> checkingTilesWhite;
-
 	if (currentTurn == WHITE)
 	{
-		for (CheckingPiece* piece : checkingPiecesBlack)
-		{
-			checkingTilesBlack.insert(checkingTilesBlack.end(), piece->lineOfSight.begin(), piece->lineOfSight.end());
-		}
+		return !attackSetBlack.count(endTile) && !kingXRay.count(endTile);
 	}
 	else
 	{
-		for (CheckingPiece* piece : checkingPiecesWhite)
-		{
-			checkingTilesWhite.insert(checkingTilesWhite.end(), piece->lineOfSight.begin(), piece->lineOfSight.end());
-		}
+		return !attackSetWhite.count(endTile) && !kingXRay.count(endTile);
 	}
 	
-	return !TileInContainer(endTile, currentTurn == WHITE ? checkingTilesBlack : checkingTilesWhite);
 }
 
 bool Board::CanKingEscape(int startTile, int& moveCount)
@@ -1335,6 +1282,73 @@ bool Board::CanKingEscape(int startTile, int& moveCount)
 	return moveCount > 0;
 }
 
+bool Board::MoveBlocksCheck(int startTile, int endTile)
+{
+	int size = currentTurn == WHITE ? checkingPiecesBlack.size() : checkingPiecesWhite.size();
+
+	if (size == 1)
+	{
+		return pieces[startTile]->GetType() != KING && TileInContainer(endTile, currentTurn == WHITE ? checkingPiecesBlack[0]->lineOfSight : checkingPiecesWhite[0]->lineOfSight);
+	}
+	return false;
+}
+
+bool Board::CanBlockCheck(int kingPos, int& moveCount)
+{
+	bool bCanBlockCheck = false;
+
+	std::set<int> checkingTiles;
+	if (currentTurn == WHITE)
+	{
+		for (CheckingPiece* piece : checkingPiecesBlack)
+		{
+			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
+		}
+	}
+	else
+	{
+		for (CheckingPiece* piece : checkingPiecesWhite)
+		{
+			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
+		}
+	}
+
+	if (currentTurn == WHITE)
+	{
+		for (size_t i = 0; i < 64; i++)
+		{
+			for (int tile : attackMapWhite[i])
+			{
+				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
+				{
+					bCanBlockCheck = true;
+					moveCount++;
+					validCheckMoves[i].push_back(tile);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (size_t i = 0; i < 64; i++)
+		{
+			for (int tile : attackMapBlack[i])
+			{
+				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
+				{
+					bCanBlockCheck = true;
+					moveCount++;
+					validCheckMoves[i].push_back(tile);
+				}
+			}
+		}
+	}
+
+	printf("Move count after CanBlockCheck(): %i\n", moveCount);
+
+	return bCanBlockCheck;
+}
+
 bool Board::MoveTakesCheckingPiece(int endTile)
 {
 	auto checkingPieces = currentTurn == WHITE ? checkingPiecesBlack : checkingPiecesWhite;
@@ -1387,7 +1401,7 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 	// exclude taking by king as this is calculated in CanKingEscape()
 
 	bool bCanTakeCheckingPiece = false;
-	int checkPiecePos;
+	int checkPiecePos = -1;
 	if (currentTurn == WHITE && checkingPiecesBlack.size() > 0)
 	{
 		checkPiecePos = checkingPiecesBlack[0]->tile;
@@ -1423,23 +1437,9 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 		}
 	}
 
-	// does copying here remove the king move calculated prior?
-	if (bCanTakeCheckingPiece)
-	{
-		if (currentTurn == WHITE)
-		{
-			ClearMoves(WHITE);
-			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
-		}
-		else
-		{
-			ClearMoves(BLACK);
-			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
-		}
-		return true;
-	}
+	printf("Move count after CanTakeCheckingPiece(): %i\n", moveCount);
 
-	return false;
+	return bCanTakeCheckingPiece;
 }
 
 int Board::CalcValidCheckMoves()
@@ -1462,6 +1462,21 @@ int Board::CalcValidCheckMoves()
 		CanTakeCheckingPiece(kingPos, moveCount);
 	}
 
+	// copy validCheckMoves into attackMap
+	if (moveCount > 0)
+	{
+		if (currentTurn == WHITE)
+		{
+			ClearMoves(WHITE);
+			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
+		}
+		else
+		{
+			ClearMoves(BLACK);
+			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
+		}
+	}
+
 	return moveCount;
 }
 
@@ -1480,7 +1495,6 @@ void Board::GameOver(int winningTeam)
 
 	printf("%s wins!", winner == WHITE ? "White" : "Black");
 }
-
 
 void Board::SetupBoardFromFEN(std::string fen)
 {

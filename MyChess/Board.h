@@ -145,6 +145,9 @@ private:
 	std::set<int> attackSetWhite;
 	std::set<int> attackSetBlack;
 	void CalculateAttacks();
+	void AddToAttackSet(int startTile, int target);
+
+	std::set<int> kingXRay;
 
 	template <typename T>
 	bool TileInContainer(int target, T container) const;
