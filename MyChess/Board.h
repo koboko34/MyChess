@@ -129,6 +129,7 @@ private:
 
 	void AddNotBlocked(int startTile, int target, std::vector<int>& validMoves);
 
+	void CalculateCastling();
 	bool CheckCanCastle(int startTile, int target, int rookPos, int dir) const;
 	void HandleCastling(int startTile, int endTile);
 

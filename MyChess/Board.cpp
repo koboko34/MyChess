@@ -556,25 +556,6 @@ void Board::CalcKingMoves(int startTile)
 		}
 	}
 
-	if (pieces[startTile]->bMoved == false)
-	{
-		// long castle
-		target = startTile - 2;
-		int rookPos = target - 2;
-		if (CheckCanCastle(startTile, target, rookPos, -1))
-		{
-			attackingTiles.push_back(target);
-		}
-
-		// short castle
-		target = startTile + 2;
-		rookPos = target + 1;
-		if (CheckCanCastle(startTile, target, rookPos, 1))
-		{
-			attackingTiles.push_back(target);
-		}
-	}
-
 	AddToMap(startTile, attackingTiles);
 }
 
@@ -900,12 +881,55 @@ void Board::AddNotBlocked(int startTile, int target, std::vector<int>& validMove
 	}
 }
 
+void Board::CalculateCastling()
+{
+	if (pieces[kingPosWhite]->bMoved == false)
+	{
+		// long castle
+		int target = kingPosWhite - 2;
+		int rookPos = target - 2;
+		if (CheckCanCastle(kingPosWhite, target, rookPos, -1))
+		{
+			attackMapWhite[kingPosWhite].push_back(target);
+		}
+
+		// short castle
+		target = kingPosWhite + 2;
+		rookPos = target + 1;
+		if (CheckCanCastle(kingPosWhite, target, rookPos, 1))
+		{
+			attackMapWhite[kingPosWhite].push_back(target);
+		}
+	}
+
+	if (pieces[kingPosBlack]->bMoved == false)
+	{
+		// long castle
+		int target = kingPosBlack - 2;
+		int rookPos = target - 2;
+		if (CheckCanCastle(kingPosBlack, target, rookPos, -1))
+		{
+			attackMapBlack[kingPosBlack].push_back(target);
+		}
+
+		// short castle
+		target = kingPosBlack + 2;
+		rookPos = target + 1;
+		if (CheckCanCastle(kingPosBlack, target, rookPos, 1))
+		{
+			attackMapBlack[kingPosBlack].push_back(target);
+		}
+	}
+}
+
 bool Board::CheckCanCastle(int startTile, int target, int rookPos, int dir) const
 {
-	return InMapRange(target) && !BlockedByOwnPiece(startTile, target) && !BlockedByOwnPiece(startTile, target + -dir) &&
-		!BlockedByEnemyPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target + -dir) &&
+	int team = pieces[startTile]->GetTeam();
+	
+	return InMapRange(target) && pieces[target] == nullptr && pieces[target - dir] == nullptr &&
 		InMapRange(rookPos) && pieces[rookPos] && pieces[rookPos]->GetTeam() == pieces[startTile]->GetTeam() &&
-		pieces[rookPos]->GetType() == ROOK && !pieces[rookPos]->bMoved;
+		pieces[rookPos]->GetType() == ROOK && !pieces[rookPos]->bMoved &&
+		!TileInContainer(target, team == WHITE ? attackSetBlack : attackSetWhite) && !TileInContainer(target - dir, team == WHITE ? attackSetBlack : attackSetWhite);
 }
 
 void Board::HandleCastling(int startTile, int endTile)
@@ -1006,6 +1030,7 @@ void Board::CalculateMoves()
 	}
 
 	CalculateAttacks();
+	CalculateCastling();
 	CalculateCheck();
 }
 
