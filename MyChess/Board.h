@@ -148,7 +148,7 @@ private:
 	void CalculateAttacks();
 	void AddToAttackSet(int startTile, int target);
 
-	std::set<int> kingXRay;
+	std::set<int> kingXRay; // squares behind the king which checking pieces can see, king cannot escape to these squares
 
 	template <typename T>
 	bool TileInContainer(int target, T container) const;
@@ -176,6 +176,19 @@ private:
 		int tile;
 		std::vector<int> lineOfSight;
 	};
+
+	struct PinnedPiece
+	{
+		int tile;
+		std::vector<int> lineOfSight;
+	};
+
+	std::vector<PinnedPiece*> pinnedPiecesWhite;
+	std::vector<PinnedPiece*> pinnedPiecesBlack;
+
+	void ClearPinnedPieces();
+	void AddPinnedPiece(int startTile, const std::vector<int>& pinLOS);
+	void HandlePinnedPieces();
 
 	bool MoveBlocksCheck(int startTile, int endTile);
 	bool CanBlockCheck(int kingPos, int& moveCount);

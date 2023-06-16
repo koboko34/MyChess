@@ -277,7 +277,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	if (pieces[startTile] == nullptr)
 		return false;
 
-	if (endTile < 0 || endTile >= 64 || startTile < 0 || startTile >= 64)
+	if (!InMapRange(startTile) || !InMapRange(endTile))
 		return false;
 
 	if (!IsCurrentTurn(startTile))
@@ -359,9 +359,33 @@ bool Board::CheckLegalMove(int startTile, int endTile)
 
 void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int kingPos, bool& foundKing, std::vector<int>& checkLOS, std::vector<int>& attackingTiles)
 {
+	int firstFriendlyPiece = -1;
 	int target = startTile + dir;
+	int pinnedPieceTile;
+	bool blockedByNonKing = false;
+	std::vector<int> pinLOS;
+
 	while (min <= target && target <= max)
 	{
+		if (blockedByNonKing)
+		{
+			if (BlockedByEnemyPiece(startTile, target) && pieces[target]->GetType() == KING && pieces[target]->GetTeam() != pieces[startTile]->GetTeam())
+			{
+				pinLOS.push_back(startTile);
+				AddPinnedPiece(pinnedPieceTile, pinLOS);
+				return;
+			}
+
+			if (BlockedByOwnPiece(startTile, target) || BlockedByEnemyPiece(startTile, target))
+			{
+				return;
+			}
+
+			pinLOS.push_back(target);
+			target += dir;
+			continue;
+		}
+		
 		if (BlockedByEnemyPiece(startTile, target))
 		{
 			if (foundKing)
@@ -377,12 +401,17 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 				target += dir;
 				continue;
 			}
-			return;
+
+			blockedByNonKing = true;
+			pinnedPieceTile = target;
+			pinLOS = checkLOS;
+			target += dir;
+			continue;
 		}
 
-		if (BlockedByOwnPiece(startTile, target))
+		if (BlockedByOwnPiece(startTile, target) && firstFriendlyPiece == -1 && !blockedByNonKing)
 		{
-			AddProtectedPieceToSet(target);
+			firstFriendlyPiece = target;
 			return;
 		}
 
@@ -396,6 +425,11 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 		}
 
 		target += dir;
+	}
+
+	if (firstFriendlyPiece != -1)
+	{
+		AddProtectedPieceToSet(firstFriendlyPiece);
 	}
 }
 
@@ -778,18 +812,10 @@ bool Board::BlockedByEnemyPiece(int startTile, int target) const
 	return pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
 }
 
-bool Board::PieceExists(int index)
-{
-	if (pieces[index] == nullptr)
-	{
-		return false;
-	}
-	return true;
-}
-
 void Board::CompleteTurn()
 {
 	ClearEnPassant();
+	ClearPinnedPieces();
 
 	if (currentTurn == WHITE)
 	{
@@ -804,75 +830,6 @@ void Board::CompleteTurn()
 	CalculateMoves();
 }
 
-template <typename T>
-bool Board::TileInContainer(int target, T container) const
-{
-	return std::find(container.begin(), container.end(), target) != container.end();
-}
-
-void Board::PrepEdges()
-{
-	firstRank = { 56, 57, 58, 59, 60, 61, 62, 63 };
-	eighthRank = { 0, 1, 2, 3, 4, 5, 6, 7 };
-	aFile = { 0, 8, 16, 24, 32, 40, 48, 56 };
-	bFile = { 1, 9, 17, 25, 33, 41, 49, 57 };
-	gFile = { 6, 14, 22, 30, 38, 46, 54, 62 };
-	hFile = { 7, 15, 23, 31, 39, 47, 55, 63 };
-	topLeft = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56 };
-	topRight = { 0, 1, 2, 3, 4, 5, 6, 7, 15, 23, 31, 39, 47, 55, 63 };
-	bottomLeft = { 0, 8, 16, 24, 32, 40, 48, 56, 57, 58, 59, 60, 61, 62, 63 };
-	bottomRight = { 7, 15, 23, 31, 39, 47, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
-}
-
-void Board::CalculateEdges()
-{
-	int temp;
-
-	for (size_t i = 0; i < 64; i++)
-	{
-		temp = i % 8;
-
-		edgesFromTiles[i].left = i - temp;
-		edgesFromTiles[i].right = edgesFromTiles[i].left + 7;
-
-		temp = i / 8;
-
-		edgesFromTiles[i].top = i - (8 * temp);
-		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
-
-		temp = i;
-		while (!TileInContainer(temp, topRight))
-		{
-			temp -= 7;
-		}
-		edgesFromTiles[i].topRight = temp;
-
-		temp = i;
-		while (!TileInContainer(temp, topLeft))
-		{
-			temp -= 9;
-		}
-		edgesFromTiles[i].topLeft = temp;
-
-		temp = i;
-		while (!TileInContainer(temp, bottomLeft))
-		{
-			temp += 7;
-		}
-		edgesFromTiles[i].bottomLeft = temp;
-
-		temp = i;
-		while (!TileInContainer(temp, bottomRight))
-		{
-			temp += 9;
-		}
-		edgesFromTiles[i].bottomRight = temp;
-
-		// printf("%i\n", i);
-		// edgesFromTiles[i].Print();
-	}
-}
-
 void Board::AddNotBlocked(int startTile, int target, std::vector<int>& validMoves)
 {
 	if (InMapRange(target) && !BlockedByOwnPiece(startTile, target))
@@ -880,6 +837,8 @@ void Board::AddNotBlocked(int startTile, int target, std::vector<int>& validMove
 		validMoves.push_back(target);
 	}
 }
+
+// ========================================== CASTLING ==========================================
 
 void Board::CalculateCastling()
 {
@@ -950,6 +909,8 @@ void Board::HandleCastling(int startTile, int endTile)
 	}
 }
 
+// ========================================== EN PASSANT ==========================================
+
 void Board::CreateEnPassant(int startTile, int endTile)
 {
 	int teamDir = pieces[endTile]->GetTeam() == WHITE ? -1 : 1;
@@ -988,23 +949,25 @@ void Board::TakeByEnPassant()
 	}
 }
 
+// ========================================== CHECK & CHECKMATE ==========================================
+
 void Board::CalculateMoves()
 {
 	attackSetWhite.clear();
 	attackSetBlack.clear();
 	ClearCheckingPieces();
 	kingXRay.clear();
-	
+
 	for (size_t i = 0; i < 64; i++)
 	{
 		attackMapWhite[i].clear();
 		attackMapBlack[i].clear();
-		
+
 		if (pieces[i] == nullptr || pieces[i]->GetType() == EN_PASSANT)
 		{
 			continue;
 		}
-		
+
 		switch (pieces[i]->GetType())
 		{
 		case KING:
@@ -1030,6 +993,7 @@ void Board::CalculateMoves()
 	}
 
 	CalculateAttacks();
+	HandlePinnedPieces();
 	CalculateCastling();
 	CalculateCheck();
 }
@@ -1085,18 +1049,6 @@ void Board::CalculateAttacks()
 	}
 }
 
-void Board::AddToAttackSet(int startTile, int target)
-{
-	if (pieces[startTile]->GetTeam() == WHITE)
-	{
-		attackSetWhite.insert(target);
-	}
-	else
-	{
-		attackSetBlack.insert(target);
-	}
-}
-
 void Board::AddToMap(int startTile, std::vector<int> validMoves)
 {
 	if (validMoves.empty())
@@ -1120,15 +1072,15 @@ void Board::AddToMap(int startTile, std::vector<int> validMoves)
 	}
 }
 
-void Board::SetKingPos(int target)
+void Board::AddToAttackSet(int startTile, int target)
 {
-	if (pieces[target]->GetTeam() == WHITE)
+	if (pieces[startTile]->GetTeam() == WHITE)
 	{
-		kingPosWhite = target;
+		attackSetWhite.insert(target);
 	}
 	else
 	{
-		kingPosBlack = target;
+		attackSetBlack.insert(target);
 	}
 }
 
@@ -1513,12 +1465,165 @@ void Board::ClearValidCheckMoves()
 	}
 }
 
+void Board::ClearPinnedPieces()
+{
+	for (PinnedPiece* piece : pinnedPiecesWhite)
+	{
+		delete piece;
+	}
+	pinnedPiecesWhite.clear();
+
+	for (PinnedPiece* piece : pinnedPiecesBlack)
+	{
+		delete piece;
+	}
+	pinnedPiecesBlack.clear();
+}
+
+void Board::AddPinnedPiece(int startTile, const std::vector<int>& pinLOS)
+{
+	PinnedPiece* piece = new PinnedPiece();
+	piece->tile = startTile;
+	piece->lineOfSight = pinLOS;
+
+	if (pieces[startTile]->GetTeam() == WHITE)
+	{
+		pinnedPiecesWhite.push_back(piece);
+	}
+	else
+	{
+		pinnedPiecesBlack.push_back(piece);
+	}
+}
+
+void Board::HandlePinnedPieces()
+{
+	if (currentTurn == WHITE)
+	{
+		for (PinnedPiece* piece : pinnedPiecesWhite)
+		{
+			for (int attack : attackMapWhite[piece->tile])
+			{
+				if (!TileInContainer(attack, piece->lineOfSight))
+				{
+					attackMapWhite[piece->tile].erase(std::remove(attackMapWhite[piece->tile].begin(), attackMapWhite[piece->tile].end(), attack), attackMapWhite[piece->tile].end());
+				}
+			}
+		}
+	}
+	else
+	{
+		for (PinnedPiece* piece : pinnedPiecesBlack)
+		{
+			for (int attack : attackMapBlack[piece->tile])
+			{
+				if (!TileInContainer(attack, piece->lineOfSight))
+				{
+					attackMapBlack[piece->tile].erase(std::remove(attackMapBlack[piece->tile].begin(), attackMapBlack[piece->tile].end(), attack), attackMapBlack[piece->tile].end());
+				}
+			}
+		}
+	}
+}
+
 void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
 	bGameOver = true;
 
 	printf("%s wins!", winner == WHITE ? "White" : "Black");
+}
+
+// ========================================== UTILITY ==========================================
+
+template <typename T>
+bool Board::TileInContainer(int target, T container) const
+{
+	return std::find(container.begin(), container.end(), target) != container.end();
+}
+
+void Board::SetKingPos(int target)
+{
+	if (pieces[target]->GetTeam() == WHITE)
+	{
+		kingPosWhite = target;
+	}
+	else
+	{
+		kingPosBlack = target;
+	}
+}
+
+void Board::PrepEdges()
+{
+	firstRank = { 56, 57, 58, 59, 60, 61, 62, 63 };
+	eighthRank = { 0, 1, 2, 3, 4, 5, 6, 7 };
+	aFile = { 0, 8, 16, 24, 32, 40, 48, 56 };
+	bFile = { 1, 9, 17, 25, 33, 41, 49, 57 };
+	gFile = { 6, 14, 22, 30, 38, 46, 54, 62 };
+	hFile = { 7, 15, 23, 31, 39, 47, 55, 63 };
+	topLeft = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56 };
+	topRight = { 0, 1, 2, 3, 4, 5, 6, 7, 15, 23, 31, 39, 47, 55, 63 };
+	bottomLeft = { 0, 8, 16, 24, 32, 40, 48, 56, 57, 58, 59, 60, 61, 62, 63 };
+	bottomRight = { 7, 15, 23, 31, 39, 47, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
+}
+
+void Board::CalculateEdges()
+{
+	int temp;
+
+	for (size_t i = 0; i < 64; i++)
+	{
+		temp = i % 8;
+
+		edgesFromTiles[i].left = i - temp;
+		edgesFromTiles[i].right = edgesFromTiles[i].left + 7;
+
+		temp = i / 8;
+
+		edgesFromTiles[i].top = i - (8 * temp);
+		edgesFromTiles[i].bottom = 56 + edgesFromTiles[i].top;
+
+		temp = i;
+		while (!TileInContainer(temp, topRight))
+		{
+			temp -= 7;
+		}
+		edgesFromTiles[i].topRight = temp;
+
+		temp = i;
+		while (!TileInContainer(temp, topLeft))
+		{
+			temp -= 9;
+		}
+		edgesFromTiles[i].topLeft = temp;
+
+		temp = i;
+		while (!TileInContainer(temp, bottomLeft))
+		{
+			temp += 7;
+		}
+		edgesFromTiles[i].bottomLeft = temp;
+
+		temp = i;
+		while (!TileInContainer(temp, bottomRight))
+		{
+			temp += 9;
+		}
+		edgesFromTiles[i].bottomRight = temp;
+
+		// printf("%i\n", i);
+		// edgesFromTiles[i].Print();
+	}
+}
+
+bool Board::PieceExists(int index)
+{
+	if (pieces[index] == nullptr)
+	{
+		return false;
+	}
+	return true;
 }
 
 void Board::SetupBoardFromFEN(std::string fen)
