@@ -746,7 +746,7 @@ void Board::CalcPawnMoves(int startTile)
 	// take on diagonal, local forward right
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_RIGHT * teamDir;
-	if (InMapRange(target))
+	if (InMapRange(target) && ((pieces[startTile]->GetTeam() == WHITE && !TileInContainer(startTile, hFile)) || (pieces[startTile]->GetTeam() == BLACK && !TileInContainer(startTile, aFile))))
 	{
 		if (pieces[target])
 		{
@@ -774,7 +774,7 @@ void Board::CalcPawnMoves(int startTile)
 	// take on diagonal, local forward left
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_LEFT * teamDir;
-	if (InMapRange(target))
+	if (InMapRange(target) && ((pieces[startTile]->GetTeam() == WHITE && !TileInContainer(startTile, aFile)) || (pieces[startTile]->GetTeam() == BLACK && !TileInContainer(startTile, hFile))))
 	{
 		if (pieces[target])
 		{
