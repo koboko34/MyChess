@@ -306,8 +306,6 @@ bool Board::MovePiece(int startTile, int endTile)
 		return false;
 	}
 
-	// check if moving pinned piece for discovered check on self
-
 	// if in check
 	if (currentTurn == WHITE ? bInCheckWhite : bInCheckBlack == true)
 	{
@@ -340,6 +338,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	{
 	case PAWN:
 		CreateEnPassant(startTile, endTile);
+		HandlePromotion(endTile);
 		break;
 	case KING:
 		HandleCastling(startTile, endTile);
@@ -946,6 +945,18 @@ void Board::TakeByEnPassant()
 			enPassantOwner = nullptr;
 			return;
 		}
+	}
+}
+
+void Board::HandlePromotion(int endTile)
+{
+	if (currentTurn == WHITE && TileInContainer(endTile, eighthRank))
+	{
+		// promote
+	}
+	else if (currentTurn == BLACK && TileInContainer(endTile, firstRank))
+	{
+		// promote
 	}
 }
 

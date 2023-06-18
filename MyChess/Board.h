@@ -139,6 +139,8 @@ private:
 	int lastEnPassantIndex;
 	Piece* enPassantOwner;
 
+	void HandlePromotion(int endTile);
+
 	std::vector<int> attackMapWhite[64];
 	std::vector<int> attackMapBlack[64];
 	void CalculateMoves();
