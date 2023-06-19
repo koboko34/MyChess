@@ -1153,14 +1153,14 @@ void Board::ClearMoves(int team)
 {
 	if (team == WHITE)
 	{
-		for (std::vector<int> attacks : attackMapWhite)
+		for (std::vector<int>& attacks : attackMapWhite)
 		{
 			attacks.clear();
 		}
 	}
 	else if (team == BLACK)
 	{
-		for (std::vector<int> attacks : attackMapBlack)
+		for (std::vector<int>& attacks : attackMapBlack)
 		{
 			attacks.clear();
 		}
@@ -1470,7 +1470,7 @@ int Board::CalcValidCheckMoves()
 
 void Board::ClearValidCheckMoves()
 {
-	for (std::vector<int> moves : validCheckMoves)
+	for (std::vector<int>& moves : validCheckMoves)
 	{
 		moves.clear();
 	}
