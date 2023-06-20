@@ -6,6 +6,7 @@ Board::Board()
 	currentTurn = WHITE;
 	lastEnPassantIndex = -1;
 	enPassantOwner = nullptr;
+	bChoosingPromotion = false;
 
 	bInCheckBlack = false;
 	bInCheckWhite = false;
@@ -38,6 +39,12 @@ Board::~Board()
 	{
 		glDeleteTextures(1, &piecesTextureId);
 	}
+
+	for (PieceType type : promotionTypes)
+	{
+		delete promotionPieces[type];
+	}
+	promotionPieces.clear();
 }
 
 void Board::Init(unsigned int width, unsigned int height)
@@ -51,7 +58,7 @@ void Board::Init(unsigned int width, unsigned int height)
 	SetupBoard(view, projection);
 	SetupPieces(view, projection);
 	SetupPickingShader(view, projection);
-
+	SetupPromotionPieces();
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 
 	int kingsSet = 0;
@@ -82,6 +89,15 @@ void Board::DrawBoard(int selectedObjectId)
 	
 	pieceShader.UseShader();
 	RenderPieces();
+
+	if (bChoosingPromotion)
+	{
+		boardShader.UseShader();
+		RenderPromotionTiles();
+
+		pieceShader.UseShader();
+		RenderPromotionPieces();
+	}
 }
 
 void Board::SetupBoard(glm::mat4 view, glm::mat4 projection)
@@ -177,6 +193,16 @@ void Board::SetupPickingShader(glm::mat4 view, glm::mat4 projection)
 	glUniformMatrix4fv(pickingProjectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 }
 
+void Board::SetupPromotionPieces()
+{
+	for (PieceType type : promotionTypes)
+	{
+		Piece* piece = new Piece(WHITE, type);
+		std::pair<int, Piece*> keyValPair(type, piece);
+		promotionPieces.insert(keyValPair);
+	}
+}
+
 void Board::PickingPass()
 {
 	pickingShader.UseShader();
@@ -265,6 +291,62 @@ void Board::RenderPieces()
 
 			pieces[objectId]->DrawPiece();
 		}
+	}
+
+	glBindVertexArray(0);
+}
+
+void Board::RenderPromotionTiles()
+{
+	glBindVertexArray(VAO);
+	int file = -1;
+
+	for (size_t rank = 8; rank >= 1; rank--)
+	{
+		if (rank % 4 == 0)
+		{
+			glUniform3f(tileColorLocation, whiteTileColor.x, whiteTileColor.y, whiteTileColor.z);
+		}
+		else if (rank == 6 || rank == 2)
+		{
+			glUniform3f(tileColorLocation, blackTileColor.x, blackTileColor.y, blackTileColor.z);
+
+		}
+		else
+		{
+			continue;
+		}
+
+		glUniform1i(tileColorModLocation, 1);
+
+		glm::mat4 tileModel = glm::mat4(1.f);
+		tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.311f, (rank * 2 - 1 - 1.f) / 16.f, -2.f));
+		tileModel = glm::scale(tileModel, glm::vec3(tileSize + 0.05, tileSize + 0.05, 1.f));
+		glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	}
+
+	glBindVertexArray(0);
+}
+
+void Board::RenderPromotionPieces()
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, piecesTextureId);
+
+	int file = -1;
+	int pieceType = 0;
+
+	for (size_t rank = 8; rank >= 1; rank -= 2)
+	{
+		glm::mat4 pieceModel = glm::mat4(1.f);
+		pieceModel = glm::translate(pieceModel, glm::vec3((aspect / 13.7f) * file + 0.311f, (rank * 2 - 1 - 1.f) / 16.f, 0.f));
+		pieceModel = glm::scale(pieceModel, glm::vec3(tileSize + 0.05, tileSize + 0.05, 1.f));
+		glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
+
+		promotionPieces[promotionTypes[pieceType]]->DrawPiece();
+		pieceType++;
 	}
 
 	glBindVertexArray(0);
@@ -952,11 +1034,11 @@ void Board::HandlePromotion(int endTile)
 {
 	if (currentTurn == WHITE && TileInContainer(endTile, eighthRank))
 	{
-		// promote
+		bChoosingPromotion = true;
 	}
 	else if (currentTurn == BLACK && TileInContainer(endTile, firstRank))
 	{
-		// promote
+		bChoosingPromotion = true;
 	}
 }
 

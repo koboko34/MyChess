@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 #include <set>
+#include <unordered_map>
 
 #include <GL/glew.h>
 
@@ -32,7 +33,7 @@ public:
 	bool MovePiece(int startTile, int endTile);
 
 	bool PieceExists(int index);
-
+	bool IsChoosingPromotion() { return bChoosingPromotion; }
 	bool IsGameOver() { return bGameOver; }
 
 private:
@@ -40,11 +41,14 @@ private:
 	void SetupBoard(glm::mat4 view, glm::mat4 projection);
 	void SetupPieces(glm::mat4 view, glm::mat4 projection);
 	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
-
+	void SetupPromotionPieces();
 	void SetupBoardFromFEN(std::string fen);
 
 	void RenderTiles(int selectedObjectId);
 	void RenderPieces();
+
+	void RenderPromotionTiles();
+	void RenderPromotionPieces();
 
 	Shader boardShader, pieceShader, pickingShader;
 	
@@ -68,6 +72,9 @@ private:
 	GLuint piecesTextureId;
 
 	Piece* pieces[64];
+	
+	PieceType promotionTypes[4] = { QUEEN, ROOK, BISHOP, KNIGHT };
+	std::unordered_map<int, Piece*> promotionPieces;
 
 	glm::vec3 blackTileColor = glm::vec3(0.4f, 0.6f, 0.4f);
 	glm::vec3 whiteTileColor = glm::vec3(1.f, 1.f, 0.8f);
@@ -139,6 +146,7 @@ private:
 	int lastEnPassantIndex;
 	Piece* enPassantOwner;
 
+	bool bChoosingPromotion;
 	void HandlePromotion(int endTile);
 
 	std::vector<int> attackMapWhite[64];
