@@ -7,6 +7,7 @@ Board::Board()
 	lastEnPassantIndex = -1;
 	enPassantOwner = nullptr;
 	bChoosingPromotion = false;
+	pieceToPromote = -1;
 
 	bInCheckBlack = false;
 	bInCheckWhite = false;
@@ -208,20 +209,43 @@ void Board::PickingPass()
 	pickingShader.UseShader();
 	glBindVertexArray(VAO);
 
-	for (size_t rank = 8; rank >= 1; rank--)
+	if (bChoosingPromotion)
 	{
-		for (size_t file = 1; file <= 8; file++)
+		int file = -1;
+		int rank = 8;
+		for (PieceType type : promotionTypes)
 		{
-			unsigned int objectId = (8 - rank) * 8 + file - 1;
+			unsigned int objectId = type;
 			GLuint adjustedObjectId = objectId + 1;
 			glUniform1ui(objectIdLocation, adjustedObjectId);
-
+			
 			glm::mat4 tileModel = glm::mat4(1.f);
-			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 1.f));
-			tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.311f, (rank * 2 - 1 - 1.f) / 16.f, -2.f)); // change z value?
+			tileModel = glm::scale(tileModel, glm::vec3(tileSize + 0.05, tileSize + 0.05, 1.f));
 			glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+			rank -= 2;
+		}
+	}
+	else
+	{
+		for (size_t rank = 8; rank >= 1; rank--)
+		{
+			for (size_t file = 1; file <= 8; file++)
+			{
+				unsigned int objectId = (8 - rank) * 8 + file - 1;
+				GLuint adjustedObjectId = objectId + 1;
+				glUniform1ui(objectIdLocation, adjustedObjectId);
+
+				glm::mat4 tileModel = glm::mat4(1.f);
+				tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 1.f));
+				tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
+				glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+			}
 		}
 	}
 
@@ -429,7 +453,10 @@ bool Board::MovePiece(int startTile, int endTile)
 		break;
 	}
 
-	CompleteTurn();
+	if (!bChoosingPromotion)
+	{
+		CompleteTurn();
+	}
 	return true;
 }
 
@@ -1032,13 +1059,10 @@ void Board::TakeByEnPassant()
 
 void Board::HandlePromotion(int endTile)
 {
-	if (currentTurn == WHITE && TileInContainer(endTile, eighthRank))
+	if ((currentTurn == WHITE && TileInContainer(endTile, eighthRank)) || (currentTurn == BLACK && TileInContainer(endTile, firstRank)))
 	{
 		bChoosingPromotion = true;
-	}
-	else if (currentTurn == BLACK && TileInContainer(endTile, firstRank))
-	{
-		bChoosingPromotion = true;
+		pieceToPromote = endTile;
 	}
 }
 
@@ -1717,6 +1741,16 @@ bool Board::PieceExists(int index)
 		return false;
 	}
 	return true;
+}
+
+void Board::Promote(PieceType pieceType)
+{
+	printf("Promoting a piece...\n");
+
+	delete pieces[pieceToPromote];
+	pieces[pieceToPromote] = new Piece(currentTurn, pieceType);
+	bChoosingPromotion = false;
+	CompleteTurn();
 }
 
 void Board::SetupBoardFromFEN(std::string fen)

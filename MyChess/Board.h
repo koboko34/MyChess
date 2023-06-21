@@ -36,6 +36,8 @@ public:
 	bool IsChoosingPromotion() { return bChoosingPromotion; }
 	bool IsGameOver() { return bGameOver; }
 
+	void Promote(PieceType pieceType);
+
 private:
 
 	void SetupBoard(glm::mat4 view, glm::mat4 projection);
@@ -147,6 +149,7 @@ private:
 	Piece* enPassantOwner;
 
 	bool bChoosingPromotion;
+	int pieceToPromote;
 	void HandlePromotion(int endTile);
 
 	std::vector<int> attackMapWhite[64];

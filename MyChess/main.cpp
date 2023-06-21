@@ -53,18 +53,40 @@ int main()
 				pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
 				pickingTexture.DisableWriting();
 
-				if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
+				if (board.IsChoosingPromotion())
 				{
-					clickedObjectId = pixel.objectId - 1;
-				}
-				else if (clickedObjectId == pixel.objectId - 1)
-				{
-					clickedObjectId = -1;
+					switch (pixel.objectId - 1)
+					{
+					case QUEEN:
+						board.Promote(QUEEN);
+						break;
+					case ROOK:
+						board.Promote(ROOK);
+						break;
+					case BISHOP:
+						board.Promote(BISHOP);
+						break;
+					case KNIGHT:
+						board.Promote(KNIGHT);
+					default:
+						break;
+					}
 				}
 				else
 				{
-					board.MovePiece(clickedObjectId, pixel.objectId - 1);
-					clickedObjectId = -1;
+					if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
+					{
+						clickedObjectId = pixel.objectId - 1;
+					}
+					else if (clickedObjectId == pixel.objectId - 1)
+					{
+						clickedObjectId = -1;
+					}
+					else
+					{
+						board.MovePiece(clickedObjectId, pixel.objectId - 1);
+						clickedObjectId = -1;
+					}
 				}
 			}
 
