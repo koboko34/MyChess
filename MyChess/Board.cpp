@@ -8,6 +8,8 @@ Board::Board()
 	enPassantOwner = nullptr;
 	bChoosingPromotion = false;
 	pieceToPromote = -1;
+	lastMoveStart = -1;
+	lastMoveEnd = -1;
 
 	bInCheckBlack = false;
 	bInCheckWhite = false;
@@ -270,8 +272,7 @@ void Board::RenderTiles(int selectedObjectId)
 			}
 
 			unsigned int objectId = (8 - rank) * 8 + file - 1;
-			if (InMapRange(selectedObjectId) && ((selectedObjectId == objectId && pieces[objectId] != nullptr) ||
-				TileInContainer(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])))
+			if (ShouldHighlightSelectedObject(selectedObjectId, objectId) || ShouldHighlightLastMove(objectId))
 			{
 				glUniform1i(tileColorModLocation, 0);
 			}
@@ -426,6 +427,10 @@ bool Board::MovePiece(int startTile, int endTile)
 
 
 	// checks complete
+
+	lastMoveStart = startTile;
+	lastMoveEnd = endTile;
+
 	if (pieces[endTile])
 	{
 		if (pieces[startTile]->GetType() == PAWN && pieces[endTile]->GetType() == EN_PASSANT)
@@ -1808,4 +1813,15 @@ void Board::SetupBoardFromFEN(std::string fen)
 			index += moveDistance;
 		}
 	}
+}
+
+bool Board::ShouldHighlightSelectedObject(int selectedObjectId, int objectId)
+{
+	return (InMapRange(selectedObjectId) && ((selectedObjectId == objectId && pieces[objectId] != nullptr) ||
+		TileInContainer(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])));
+}
+
+bool Board::ShouldHighlightLastMove(int objectId)
+{
+	return (InMapRange(lastMoveStart) && lastMoveStart == objectId) || (InMapRange(lastMoveEnd) && lastMoveEnd == objectId);
 }

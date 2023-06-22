@@ -46,6 +46,9 @@ private:
 	void SetupPromotionPieces();
 	void SetupBoardFromFEN(std::string fen);
 
+	bool ShouldHighlightSelectedObject(int selectedObjectId, int objectId);
+	bool ShouldHighlightLastMove(int objectId);
+
 	void RenderTiles(int selectedObjectId);
 	void RenderPieces();
 
@@ -133,6 +136,9 @@ private:
 	void CalcRookMoves(int startTile);
 	void CalcPawnMoves(int startTile);
 
+	int lastMoveStart;
+	int lastMoveEnd;
+
 	bool BlockedByOwnPiece(int startTile, int target) const;
 	bool BlockedByEnemyPiece(int startTile, int target) const;
 
@@ -180,9 +186,6 @@ private:
 	void ClearMoves(int team);
 	void SetCheckMoves();
 
-	// std::vector<int> validCheckMovesWhite[64];
-	// std::vector<int> validCheckMovesBlack[64];
-
 	struct CheckingPiece
 	{
 		PieceType pieceType;
@@ -221,8 +224,6 @@ private:
 	std::vector<CheckingPiece*> checkingPiecesBlack;
 
 	void ClearCheckingPieces();
-
-	// calculate pinned pieces
 
 	void GameOver(int winningTeam);
 
