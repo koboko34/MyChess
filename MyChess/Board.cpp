@@ -127,7 +127,6 @@ void Board::SetupBoard(glm::mat4 view, glm::mat4 projection)
 	boardShader.UseShader();
 
 	tileColorLocation = glGetUniformLocation(boardShader.GetShaderId(), "tileColor");
-	tileColorModLocation = glGetUniformLocation(boardShader.GetShaderId(), "colorMod");
 	tileModelLocation = glGetUniformLocation(boardShader.GetShaderId(), "model");
 	tileViewLocation = glGetUniformLocation(boardShader.GetShaderId(), "view");
 	tileProjectionLocation = glGetUniformLocation(boardShader.GetShaderId(), "projection");
@@ -262,23 +261,24 @@ void Board::RenderTiles(int selectedObjectId)
 	{
 		for (size_t file = 1; file <= 8; file++)
 		{
-			if ((rank % 2 == 0) != (file % 2 == 0))
+			unsigned int objectId = (8 - rank) * 8 + file - 1;
+
+			if (ShouldHighlightSelectedObject(selectedObjectId, objectId))
+			{
+				glUniform3f(tileColorLocation, selectColor.x, selectColor.y, selectColor.z);
+			}
+			else if (ShouldHighlightLastMove(objectId))
+			{
+				glUniform3f(tileColorLocation, lastMoveColor.x, lastMoveColor.y, lastMoveColor.z);
+
+			}
+			else if ((rank % 2 == 0) != (file % 2 == 0))
 			{
 				glUniform3f(tileColorLocation, whiteTileColor.x, whiteTileColor.y, whiteTileColor.z);
 			}
 			else
 			{
 				glUniform3f(tileColorLocation, blackTileColor.x, blackTileColor.y, blackTileColor.z);
-			}
-
-			unsigned int objectId = (8 - rank) * 8 + file - 1;
-			if (ShouldHighlightSelectedObject(selectedObjectId, objectId) || ShouldHighlightLastMove(objectId))
-			{
-				glUniform1i(tileColorModLocation, 0);
-			}
-			else
-			{
-				glUniform1i(tileColorModLocation, 1);
 			}
 
 			glm::mat4 tileModel = glm::mat4(1.f);
@@ -341,8 +341,6 @@ void Board::RenderPromotionTiles()
 		{
 			continue;
 		}
-
-		glUniform1i(tileColorModLocation, 1);
 
 		glm::mat4 tileModel = glm::mat4(1.f);
 		tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.311f, (rank * 2 - 1 - 1.f) / 16.f, -2.f));
@@ -1016,7 +1014,7 @@ void Board::HandleCastling(int startTile, int endTile)
 	// short castle
 	else if (startTile + 2 == endTile)
 	{
-		pieces[startTile + 1] = pieces[startTile - 4];
+		pieces[startTile + 1] = pieces[startTile + 3];
 		pieces[startTile + 3] = nullptr;
 		pieces[startTile + 1]->bMoved = true;
 	}

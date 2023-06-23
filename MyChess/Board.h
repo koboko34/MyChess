@@ -69,7 +69,7 @@ private:
 		1, 2, 3
 	};
 
-	GLuint tileColorLocation, tileColorModLocation, tileModelLocation, tileViewLocation, tileProjectionLocation;
+	GLuint tileColorLocation, tileModelLocation, tileViewLocation, tileProjectionLocation;
 	GLuint pieceModelLocation, pieceViewLocation, pieceProjectionLocation;
 	GLuint pickingModelLocation, pickingViewLocation, pickingProjectionLocation, objectIdLocation, drawIdLocation;
 	GLuint VAO, EBO, VBO;
@@ -83,6 +83,8 @@ private:
 
 	glm::vec3 blackTileColor = glm::vec3(0.4f, 0.6f, 0.4f);
 	glm::vec3 whiteTileColor = glm::vec3(1.f, 1.f, 0.8f);
+	glm::vec3 selectColor = glm::vec3(1.f, 0.3f, 0.2f);
+	glm::vec3 lastMoveColor = glm::vec3(0.9f, 0.5f, 0.3f);
 
 	float tileSize = 0.13f;
 
