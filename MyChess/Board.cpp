@@ -420,8 +420,6 @@ bool Board::MovePiece(int startTile, int endTile)
 			return false;
 		}
 	}
-		
-
 
 
 	// checks complete
@@ -939,6 +937,30 @@ void Board::CompleteTurn()
 
 	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
 	CalculateMoves();
+
+	if (bGameOver)
+	{
+		return;
+	}
+
+	if (bVsComputer && currentTurn == compTeam)
+	{
+		while (true)
+		{
+			int startTile = std::rand() % 64;
+			int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
+			if (numOfMoves == 0)
+			{
+				continue;
+			}
+
+			int endTile = compTeam == WHITE ? attackMapWhite[startTile][std::rand() % numOfMoves] : attackMapBlack[startTile][std::rand() % numOfMoves];
+			if (MovePiece(startTile, endTile))
+			{
+				break;
+			}
+		}
+	}
 }
 
 void Board::AddNotBlocked(int startTile, int target, std::vector<int>& validMoves)

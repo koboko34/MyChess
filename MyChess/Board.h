@@ -232,5 +232,8 @@ private:
 	bool bGameOver;
 	int winner;
 
+	bool bVsComputer = true; // set dynamically on main menu once added
+	PieceTeam compTeam = BLACK; // set dynamically when selecting team
+
 };
 
