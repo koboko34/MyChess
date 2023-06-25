@@ -226,7 +226,7 @@ void Board::PickingPass()
 		glUniform1ui(objectIdLocation, adjustedObjectId);
 
 		glm::mat4 tileModel = glm::mat4(1.f);
-		tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 1) / 16.f, 1.f));
+		tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 2) / 16.f, 1.f));
 		tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttomHeight, 1.f));
 		glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
@@ -404,7 +404,7 @@ void Board::RenderContinueButton()
 	glUniform3f(tileColorLocation, 0.1f, 0.1f, 0.1f);
 
 	glm::mat4 tileModel = glm::mat4(1.f);
-	tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 1 - 1.f) / 16.f, -2.f));
+	tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 2) / 16.f, -2.f));
 	tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttomHeight, 1.f));
 	glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
@@ -559,6 +559,7 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 		if (BlockedByOwnPiece(startTile, target) && firstFriendlyPiece == -1 && !blockedByNonKing)
 		{
 			firstFriendlyPiece = target;
+			AddProtectedPieceToSet(firstFriendlyPiece);
 			return;
 		}
 
@@ -572,11 +573,6 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 		}
 
 		target += dir;
-	}
-
-	if (firstFriendlyPiece != -1)
-	{
-		AddProtectedPieceToSet(firstFriendlyPiece);
 	}
 }
 
@@ -1720,7 +1716,7 @@ void Board::GameOver(int winningTeam)
 	winner = winningTeam;
 	bGameOver = true;
 
-	printf("%s wins!", winner == WHITE ? "White" : "Black");
+	printf("%s wins!\n", winner == WHITE ? "White" : "Black");
 }
 
 // ========================================== UTILITY ==========================================

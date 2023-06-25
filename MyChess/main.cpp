@@ -51,58 +51,58 @@ int main()
 			glClearColor(0.0f, 0.0f, 0.0f, 1.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			if (!board->IsGameOver())
+			board->PickingPass();
+
+			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
+			pickingTexture.DisableWriting();
+
+			pixel.Print();
+
+			if (board->IsGameOver())
 			{
-				board->PickingPass();
-
-				pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
-				pickingTexture.DisableWriting();
-
-				if (board->IsGameOver())
+				if (pixel.objectId - 1 == 0)
 				{
-					if (pixel.objectId - 1 == 0)
-					{
-						delete board;
-						continue;
-					}
+					delete board;
+					board = nullptr;
+					continue;
 				}
-				else if (board->IsChoosingPromotion())
+			}
+			else if (board->IsChoosingPromotion())
+			{
+				switch (pixel.objectId - 1)
 				{
-					switch (pixel.objectId - 1)
-					{
-					case QUEEN:
-						board->Promote(QUEEN);
-						break;
-					case ROOK:
-						board->Promote(ROOK);
-						break;
-					case BISHOP:
-						board->Promote(BISHOP);
-						break;
-					case KNIGHT:
-						board->Promote(KNIGHT);
-					default:
-						break;
-					}
+				case QUEEN:
+					board->Promote(QUEEN);
+					break;
+				case ROOK:
+					board->Promote(ROOK);
+					break;
+				case BISHOP:
+					board->Promote(BISHOP);
+					break;
+				case KNIGHT:
+					board->Promote(KNIGHT);
+				default:
+					break;
+				}
+			}
+			else
+			{
+				if (clickedObjectId == -1 || !board->PieceExists(clickedObjectId))
+				{
+					clickedObjectId = pixel.objectId - 1;
+				}
+				else if (clickedObjectId == pixel.objectId - 1)
+				{
+					clickedObjectId = -1;
 				}
 				else
 				{
-					if (clickedObjectId == -1 || !board->PieceExists(clickedObjectId))
-					{
-						clickedObjectId = pixel.objectId - 1;
-					}
-					else if (clickedObjectId == pixel.objectId - 1)
-					{
-						clickedObjectId = -1;
-					}
-					else
-					{
-						board->MovePiece(clickedObjectId, pixel.objectId - 1);
-						clickedObjectId = -1;
-					}
+					board->MovePiece(clickedObjectId, pixel.objectId - 1);
+					clickedObjectId = -1;
 				}
 			}
-
+			
 			window.bIsPressed = false;
 		}
 
