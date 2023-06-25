@@ -3,6 +3,7 @@
 Board::Board()
 {
 	VAO, EBO, VBO = 0;
+
 	currentTurn = WHITE;
 	lastEnPassantIndex = -1;
 	enPassantOwner = nullptr;
@@ -93,6 +94,13 @@ void Board::DrawBoard(int selectedObjectId)
 	pieceShader.UseShader();
 	RenderPieces();
 
+	if (bGameOver) // change when working
+	{
+		boardShader.UseShader();
+		RenderContinueButton();
+		return;
+	}
+	
 	if (bChoosingPromotion)
 	{
 		boardShader.UseShader();
@@ -100,6 +108,7 @@ void Board::DrawBoard(int selectedObjectId)
 
 		pieceShader.UseShader();
 		RenderPromotionPieces();
+		return;
 	}
 }
 
@@ -210,7 +219,20 @@ void Board::PickingPass()
 	pickingShader.UseShader();
 	glBindVertexArray(VAO);
 
-	if (bChoosingPromotion)
+	if (bGameOver) // continue button
+	{
+		unsigned int objectId = 0;
+		GLuint adjustedObjectId = objectId + 1;
+		glUniform1ui(objectIdLocation, adjustedObjectId);
+
+		glm::mat4 tileModel = glm::mat4(1.f);
+		tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 1) / 16.f, 1.f));
+		tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttomHeight, 1.f));
+		glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	}
+	else if (bChoosingPromotion)
 	{
 		int file = -1;
 		int rank = 8;
@@ -371,6 +393,22 @@ void Board::RenderPromotionPieces()
 		promotionPieces[promotionTypes[pieceType]]->DrawPiece();
 		pieceType++;
 	}
+
+	glBindVertexArray(0);
+}
+
+void Board::RenderContinueButton()
+{
+	glBindVertexArray(VAO);
+
+	glUniform3f(tileColorLocation, 0.1f, 0.1f, 0.1f);
+
+	glm::mat4 tileModel = glm::mat4(1.f);
+	tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 1 - 1.f) / 16.f, -2.f));
+	tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttomHeight, 1.f));
+	glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	glBindVertexArray(0);
 }

@@ -55,6 +55,10 @@ private:
 	void RenderPromotionTiles();
 	void RenderPromotionPieces();
 
+	void RenderContinueButton();
+	float buttomHeight = 0.13f;
+	float buttonWidth = 0.35f;
+
 	Shader boardShader, pieceShader, pickingShader;
 	
 	GLfloat tileVertices[12] = {
