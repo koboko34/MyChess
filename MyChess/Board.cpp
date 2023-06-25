@@ -983,21 +983,7 @@ void Board::CompleteTurn()
 
 	if (bVsComputer && currentTurn == compTeam)
 	{
-		while (true)
-		{
-			int startTile = std::rand() % 64;
-			int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
-			if (numOfMoves == 0)
-			{
-				continue;
-			}
-
-			int endTile = compTeam == WHITE ? attackMapWhite[startTile][std::rand() % numOfMoves] : attackMapBlack[startTile][std::rand() % numOfMoves];
-			if (MovePiece(startTile, endTile))
-			{
-				break;
-			}
-		}
+		PlayCompMove();
 	}
 }
 
@@ -1702,6 +1688,29 @@ void Board::HandlePinnedPieces()
 					attackMapBlack[piece->tile].erase(std::remove(attackMapBlack[piece->tile].begin(), attackMapBlack[piece->tile].end(), attack), attackMapBlack[piece->tile].end());
 				}
 			}
+		}
+	}
+}
+
+void Board::PlayCompMove()
+{
+	std::random_device rd;
+	std::uniform_int_distribution<int> tiles(0, 63);
+	
+	while (true)
+	{
+		int startTile = tiles(rd);
+		int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
+		if (numOfMoves == 0)
+		{
+			continue;
+		}
+
+		std::uniform_int_distribution<int> moves(0, numOfMoves - 1);
+		int endTile = compTeam == WHITE ? attackMapWhite[startTile][moves(rd)] : attackMapBlack[startTile][moves(rd)];
+		if (MovePiece(startTile, endTile))
+		{
+			return;
 		}
 	}
 }

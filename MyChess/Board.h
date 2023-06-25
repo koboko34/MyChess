@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include <random>
 
 #include <GL/glew.h>
 
@@ -238,6 +239,8 @@ private:
 
 	bool bVsComputer = true; // set dynamically on main menu once added
 	PieceTeam compTeam = BLACK; // set dynamically when selecting team
+
+	void PlayCompMove();
 
 };
 
