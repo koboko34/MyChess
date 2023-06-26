@@ -8,6 +8,8 @@
 #include <GLM/gtc/matrix_transform.hpp>
 #include <GLM/gtc/type_ptr.hpp>
 
+#include <irrKlang/irrKlang.h>
+
 #include "CommonValues.h"
 
 #include "board.h"
@@ -27,6 +29,9 @@ int main()
 
 	Board* board = nullptr;
 
+	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
+	soundEngine->setSoundVolume(1.f);
+
 	PickingTexture pickingTexture;
 	pickingTexture.Init(WIDTH, HEIGHT);
 	PickingTexture::PixelInfo pixel;
@@ -37,7 +42,7 @@ int main()
 		if (board == nullptr)
 		{
 			board = new Board();
-			board->Init(WIDTH, HEIGHT);
+			board->Init(WIDTH, HEIGHT, soundEngine);
 		}
 		
 		glfwPollEvents();
@@ -56,7 +61,7 @@ int main()
 			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
 			pickingTexture.DisableWriting();
 
-			pixel.Print();
+			// pixel.Print();
 
 			if (board->IsGameOver())
 			{
@@ -64,6 +69,7 @@ int main()
 				{
 					delete board;
 					board = nullptr;
+					soundEngine->play2D("sounds/notify.mp3");
 					continue;
 				}
 			}

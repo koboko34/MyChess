@@ -4,6 +4,9 @@ Board::Board()
 {
 	VAO, EBO, VBO = 0;
 
+	lastMoveSound = NONE;
+	bSetPromoSound = false;
+
 	currentTurn = WHITE;
 	lastEnPassantIndex = -1;
 	enPassantOwner = nullptr;
@@ -51,8 +54,14 @@ Board::~Board()
 	promotionPieces.clear();
 }
 
-void Board::Init(unsigned int width, unsigned int height)
+void Board::Init(unsigned int width, unsigned int height, irrklang::ISoundEngine* sEngine)
 {
+	soundEngine = sEngine;
+	if (soundEngine == nullptr)
+	{
+		printf("Sound engine is null!\n");
+	}
+	
 	glm::mat4 view = glm::mat4(1.f);
 	view = glm::translate(view, glm::vec3(0.f, 0.f, -1.f));
 
@@ -461,6 +470,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 
 	// checks complete
+	bool tookPiece = pieces[endTile] && pieces[endTile]->GetTeam() != currentTurn;
 
 	lastMoveStart = startTile;
 	lastMoveEnd = endTile;
@@ -492,10 +502,21 @@ bool Board::MovePiece(int startTile, int endTile)
 		break;
 	}
 
+	// set relevant sound, played after checking if check or checkmate in CalculateCheck()
+	if (tookPiece)
+		lastMoveSound = CAPTURE;
+	else if (bSetPromoSound)
+		lastMoveSound = PROMOTE;
+	else if (currentTurn == BLACK)
+		lastMoveSound = MOVE_OPP;
+	else
+		lastMoveSound = MOVE_SELF;
+
 	if (!bChoosingPromotion)
 	{
 		CompleteTurn();
 	}
+
 	return true;
 }
 
@@ -1107,6 +1128,7 @@ void Board::HandlePromotion(int endTile)
 	if ((currentTurn == WHITE && TileInContainer(endTile, eighthRank)) || (currentTurn == BLACK && TileInContainer(endTile, firstRank)))
 	{
 		bChoosingPromotion = true;
+		bSetPromoSound = true;
 		pieceToPromote = endTile;
 	}
 }
@@ -1266,12 +1288,14 @@ void Board::CalculateCheck()
 				return;
 			}
 
+			soundEngine->play2D("sounds/move-check.mp3");
 			ClearMoves(WHITE);
 			SetCheckMoves();
 		}
 		else
 		{
 			bInCheckWhite = false;
+			PlayMoveSound();
 		}
 	}
 	else
@@ -1290,13 +1314,20 @@ void Board::CalculateCheck()
 				return;
 			}
 
+			soundEngine->play2D("sounds/move-check.mp3");
 			ClearMoves(BLACK);
 			SetCheckMoves();
 		}
 		else
 		{
 			bInCheckBlack = false;
+			PlayMoveSound();
 		}
+	}
+
+	if (bSetPromoSound)
+	{
+		bSetPromoSound = false;
 	}
 }
 
@@ -1715,6 +1746,8 @@ void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
 	bGameOver = true;
+	soundEngine->stopAllSounds();
+	soundEngine->play2D("sounds/game-end.mp3");
 
 	printf("%s wins!\n", winner == WHITE ? "White" : "Black");
 }
@@ -1736,6 +1769,36 @@ void Board::SetKingPos(int target)
 	else
 	{
 		kingPosBlack = target;
+	}
+}
+
+void Board::PlayMoveSound()
+{
+	switch (lastMoveSound)
+	{
+	case MOVE_SELF:
+		soundEngine->play2D("sounds/move-self.mp3");
+		break;
+	case MOVE_OPP:
+		soundEngine->play2D("sounds/move-opponent.mp3");
+		break;
+	case CAPTURE:
+		soundEngine->play2D("sounds/capture.mp3");
+		break;
+	case CHECK:
+		soundEngine->play2D("sounds/move-check.mp3");
+		break;
+	case CASTLE:
+		soundEngine->play2D("sounds/castle.mp3");
+		break;
+	case CHECKMATE:
+		soundEngine->play2D("sounds/game-end.mp3");
+		break;
+	case PROMOTE:
+		soundEngine->play2D("sounds/promote.mp3");
+		break;
+	default:
+		break;
 	}
 }
 
@@ -1817,6 +1880,7 @@ void Board::Promote(PieceType pieceType)
 
 	delete pieces[pieceToPromote];
 	pieces[pieceToPromote] = new Piece(currentTurn, pieceType);
+	// lastMoveSound = PROMOTE;
 	bChoosingPromotion = false;
 	CompleteTurn();
 }

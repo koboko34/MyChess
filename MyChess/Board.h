@@ -16,6 +16,8 @@
 #include <GLM/gtc/matrix_transform.hpp>
 #include <GLM/gtc/type_ptr.hpp>
 
+#include <irrKlang/irrKlang.h>
+
 #include "CommonValues.h"
 
 #include "Shader.h"
@@ -27,7 +29,7 @@ public:
 	Board();
 	~Board();
 
-	void Init(unsigned int width, unsigned int height);
+	void Init(unsigned int width, unsigned int height, irrklang::ISoundEngine* sEngine);
 	void DrawBoard(int selectedObjectId);
 	void PickingPass();
 
@@ -94,6 +96,24 @@ private:
 	float tileSize = 0.13f;
 
 	float aspect;
+
+	irrklang::ISoundEngine* soundEngine;
+
+	enum MoveSounds
+	{
+		NONE = 0,
+		MOVE_SELF = 1,
+		MOVE_OPP = 2,
+		CAPTURE = 3,
+		CHECK = 4,
+		CASTLE = 5,
+		CHECKMATE = 6,
+		PROMOTE = 7,
+	};
+
+	MoveSounds lastMoveSound;
+	void PlayMoveSound();
+	bool bSetPromoSound;
 
 	PieceTeam currentTurn;
 	bool IsCurrentTurn(int index) const { return pieces[index]->GetTeam() == currentTurn; }
@@ -237,7 +257,7 @@ private:
 	bool bGameOver;
 	int winner;
 
-	bool bVsComputer = true; // set dynamically on main menu once added
+	bool bVsComputer = false; // set dynamically on main menu once added
 	PieceTeam compTeam = BLACK; // set dynamically when selecting team
 
 	void PlayCompMove();
