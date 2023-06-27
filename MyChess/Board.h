@@ -7,6 +7,7 @@
 #include <set>
 #include <unordered_map>
 #include <random>
+#include <functional>
 
 #include <GL/glew.h>
 
@@ -29,7 +30,7 @@ public:
 	Board();
 	~Board();
 
-	void Init(unsigned int width, unsigned int height, irrklang::ISoundEngine* sEngine);
+	void Init(unsigned int windowWidth, unsigned int windowHeight, irrklang::ISoundEngine* sEngine);
 	void DrawBoard(int selectedObjectId);
 	void PickingPass();
 
@@ -38,10 +39,13 @@ public:
 	bool PieceExists(int index);
 	bool IsChoosingPromotion() { return bChoosingPromotion; }
 	bool IsGameOver() { return bGameOver; }
+	bool InMainMenu() { return bInMainMenu; }
 
 	void Promote(PieceType pieceType);
 
 private:
+
+	unsigned int width, height;
 
 	void SetupBoard(glm::mat4 view, glm::mat4 projection);
 	void SetupPieces(glm::mat4 view, glm::mat4 projection);
@@ -58,9 +62,66 @@ private:
 	void RenderPromotionTiles();
 	void RenderPromotionPieces();
 
+	// typedef void(*func_t)(); // pointer to a void func with no args
+
+	struct Button
+	{
+		Button(Board* board, float xPositon, float xPositionOffset, float yPosition, float xSize, float xSizeOffset, float ySize)
+		{
+			this->board = board;
+
+			xPos = xPositon;
+			xPosOffset = xPositionOffset;
+			yPos = yPosition;
+			this->xSize = xSize;
+			this->xSizeOffset = xSizeOffset;
+			this->ySize = ySize;
+		}
+
+		void SetCallback(std::function<void()> fn) { callback = fn; }
+
+		void RemoveButton()
+		{
+			for (size_t i = 0; i < board->buttons.size(); i++)
+			{
+				if (board->buttons[i]->id == id)
+				{
+					board->buttons.erase(board->buttons.begin() + i);
+					return;
+				}
+			}
+		}
+
+		~Button()
+		{
+			RemoveButton();
+		}
+
+		Board* board;
+		std::function<void()> callback;
+
+		int id;
+
+		float xPos;
+		float xPosOffset;
+		float yPos;
+		float xSize;
+		float xSizeOffset;
+		float ySize;
+	};
+
+	std::vector<Button*> buttons;
+	void ClearButtons();
+	void RenderButton(Button* button);
+
 	void RenderContinueButton();
-	float buttomHeight = 0.13f;
+	float buttonHeight = 0.13f;
 	float buttonWidth = 0.35f;
+
+	bool bInMainMenu;
+
+	void PlaySingleplayerCallback();
+	void PlayMultiplayerCallback();
 
 	Shader boardShader, pieceShader, pickingShader;
 	

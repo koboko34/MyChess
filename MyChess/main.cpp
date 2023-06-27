@@ -19,6 +19,26 @@
 
 int WIDTH = 1366; int HEIGHT = 768;
 
+void PromotePiece(unsigned int objectId, Board* board)
+{
+	switch (objectId - 1)
+	{
+	case QUEEN:
+		board->Promote(QUEEN);
+		break;
+	case ROOK:
+		board->Promote(ROOK);
+		break;
+	case BISHOP:
+		board->Promote(BISHOP);
+		break;
+	case KNIGHT:
+		board->Promote(KNIGHT);
+	default:
+		break;
+	}
+}
+
 int main()
 {
 	Window window;
@@ -39,18 +59,16 @@ int main()
 
 	while (!glfwWindowShouldClose(window.GetWindow()))
 	{
+		glfwPollEvents();
+		
 		if (board == nullptr)
 		{
 			board = new Board();
 			board->Init(WIDTH, HEIGHT, soundEngine);
 		}
-		
-		glfwPollEvents();
 
 		if (window.bIsPressed)
 		{
-			
-			// need depth test enabled?
 			pickingTexture.EnableWriting();
 
 			glClearColor(0.0f, 0.0f, 0.0f, 1.f);
@@ -75,22 +93,7 @@ int main()
 			}
 			else if (board->IsChoosingPromotion())
 			{
-				switch (pixel.objectId - 1)
-				{
-				case QUEEN:
-					board->Promote(QUEEN);
-					break;
-				case ROOK:
-					board->Promote(ROOK);
-					break;
-				case BISHOP:
-					board->Promote(BISHOP);
-					break;
-				case KNIGHT:
-					board->Promote(KNIGHT);
-				default:
-					break;
-				}
+				PromotePiece(pixel.objectId, board);
 			}
 			else
 			{

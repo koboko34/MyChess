@@ -3,6 +3,7 @@
 Board::Board()
 {
 	VAO, EBO, VBO = 0;
+	bInMainMenu = true;
 
 	lastMoveSound = NONE;
 	bSetPromoSound = false;
@@ -54,7 +55,7 @@ Board::~Board()
 	promotionPieces.clear();
 }
 
-void Board::Init(unsigned int width, unsigned int height, irrklang::ISoundEngine* sEngine)
+void Board::Init(unsigned int windowWidth, unsigned int windowHeight, irrklang::ISoundEngine* sEngine)
 {
 	soundEngine = sEngine;
 	if (soundEngine == nullptr)
@@ -65,6 +66,8 @@ void Board::Init(unsigned int width, unsigned int height, irrklang::ISoundEngine
 	glm::mat4 view = glm::mat4(1.f);
 	view = glm::translate(view, glm::vec3(0.f, 0.f, -1.f));
 
+	width = windowWidth;
+	height = windowHeight;
 	aspect = (float)width / (float)height;
 	glm::mat4 projection = glm::ortho(0.f, aspect, 0.f, 1.f, 0.f, 100.f);
 
@@ -87,6 +90,11 @@ void Board::Init(unsigned int width, unsigned int height, irrklang::ISoundEngine
 	PrepEdges();
 	CalculateEdges();
 	CalculateMoves();
+
+	Button* singleplayerButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	singleplayerButton->SetCallback(std::bind(&Board::PlaySingleplayerCallback, this));
+	buttons.push_back(singleplayerButton);
+	buttons[0]->callback();
 }
 
 // ========================================== RENDERING ==========================================
@@ -98,15 +106,21 @@ void Board::DrawBoard(int selectedObjectId)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	boardShader.UseShader();
+	for (Button* button : buttons)
+	{
+		RenderButton(button);
+	}
+
+	boardShader.UseShader();
 	RenderTiles(selectedObjectId);
 	
 	pieceShader.UseShader();
 	RenderPieces();
 
-	if (bGameOver) // change when working
+	if (bGameOver)
 	{
 		boardShader.UseShader();
-		RenderContinueButton();
+		RenderContinueButton(); // change to new system when working
 		return;
 	}
 	
@@ -236,7 +250,7 @@ void Board::PickingPass()
 
 		glm::mat4 tileModel = glm::mat4(1.f);
 		tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 2) / 16.f, 1.f));
-		tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttomHeight, 1.f));
+		tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttonHeight, 1.f));
 		glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -406,6 +420,31 @@ void Board::RenderPromotionPieces()
 	glBindVertexArray(0);
 }
 
+void Board::ClearButtons()
+{
+	for (Button* button : buttons)
+	{
+		delete button;
+	}
+	buttons.clear();
+}
+
+void Board::RenderButton(Button* button)
+{
+	glBindVertexArray(VAO);
+
+	glUniform3f(tileColorLocation, 0.1f, 0.1f, 0.1f);
+
+	glm::mat4 tileModel = glm::mat4(1.f);
+	tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -2.f));
+	tileModel = glm::scale(tileModel, glm::vec3((aspect / width) * button->xSize + button->xSizeOffset, button->ySize, 1.f));
+	glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+}
+
 void Board::RenderContinueButton()
 {
 	glBindVertexArray(VAO);
@@ -414,12 +453,26 @@ void Board::RenderContinueButton()
 
 	glm::mat4 tileModel = glm::mat4(1.f);
 	tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 2) / 16.f, -2.f));
-	tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttomHeight, 1.f));
+	tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttonHeight, 1.f));
 	glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	glBindVertexArray(0);
+}
+
+void Board::PlaySingleplayerCallback()
+{
+	bInMainMenu = false;
+	bVsComputer = true;
+	ClearButtons();
+}
+
+void Board::PlayMultiplayerCallback()
+{
+	bInMainMenu = false;
+	bVsComputer = false;
+	ClearButtons();
 }
 
 // ========================================== MOVE LOGIC ==========================================
