@@ -55,7 +55,7 @@ Board::~Board()
 	promotionPieces.clear();
 }
 
-void Board::Init(unsigned int windowWidth, unsigned int windowHeight, irrklang::ISoundEngine* sEngine)
+void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow* window, irrklang::ISoundEngine* sEngine)
 {
 	soundEngine = sEngine;
 	if (soundEngine == nullptr)
@@ -63,6 +63,8 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, irrklang::
 		printf("Sound engine is null!\n");
 	}
 	
+	this->window = window;
+
 	glm::mat4 view = glm::mat4(1.f);
 	view = glm::translate(view, glm::vec3(0.f, 0.f, -1.f));
 
@@ -91,10 +93,7 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, irrklang::
 	CalculateEdges();
 	CalculateMoves();
 
-	Button* singleplayerButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
-	singleplayerButton->SetCallback(std::bind(&Board::PlaySingleplayerCallback, this));
-	buttons.push_back(singleplayerButton);
-	buttons[0]->callback();
+	ShowMenuButtons();
 }
 
 // ========================================== RENDERING ==========================================
@@ -461,6 +460,21 @@ void Board::RenderContinueButton()
 	glBindVertexArray(0);
 }
 
+void Board::ShowMenuButtons()
+{
+	Button* singleplayerButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	singleplayerButton->SetCallback(std::bind(&Board::PlaySingleplayerCallback, this));
+	buttons.push_back(singleplayerButton);
+
+	Button* multiplayerButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	multiplayerButton->SetCallback(std::bind(&Board::PlayMultiplayerCallback, this));
+	buttons.push_back(multiplayerButton);
+
+	Button* quitButton = new Button(this, (float)width / 4 * 2, 0.f, 0.3f, (float)width / 4, 0.f, 0.2f);
+	quitButton->SetCallback(std::bind(&Board::QuitGameCallback, this));
+	buttons.push_back(quitButton);
+}
+
 void Board::PlaySingleplayerCallback()
 {
 	bInMainMenu = false;
@@ -473,6 +487,11 @@ void Board::PlayMultiplayerCallback()
 	bInMainMenu = false;
 	bVsComputer = false;
 	ClearButtons();
+}
+
+void Board::QuitGameCallback()
+{
+	glfwSetWindowShouldClose(window, true);
 }
 
 // ========================================== MOVE LOGIC ==========================================

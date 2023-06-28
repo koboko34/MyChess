@@ -64,7 +64,7 @@ int main()
 		if (board == nullptr)
 		{
 			board = new Board();
-			board->Init(WIDTH, HEIGHT, soundEngine);
+			board->Init(WIDTH, HEIGHT, window.GetWindow(), soundEngine);
 		}
 
 		if (window.bIsPressed)

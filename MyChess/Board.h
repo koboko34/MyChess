@@ -30,7 +30,7 @@ public:
 	Board();
 	~Board();
 
-	void Init(unsigned int windowWidth, unsigned int windowHeight, irrklang::ISoundEngine* sEngine);
+	void Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow* window, irrklang::ISoundEngine* sEngine);
 	void DrawBoard(int selectedObjectId);
 	void PickingPass();
 
@@ -44,6 +44,8 @@ public:
 	void Promote(PieceType pieceType);
 
 private:
+
+	GLFWwindow* window;
 
 	unsigned int width, height;
 
@@ -61,8 +63,6 @@ private:
 
 	void RenderPromotionTiles();
 	void RenderPromotionPieces();
-
-	// typedef void(*func_t)(); // pointer to a void func with no args
 
 	struct Button
 	{
@@ -119,9 +119,11 @@ private:
 	float buttonWidth = 0.35f;
 
 	bool bInMainMenu;
+	void ShowMenuButtons();
 
 	void PlaySingleplayerCallback();
 	void PlayMultiplayerCallback();
+	void QuitGameCallback();
 
 	Shader boardShader, pieceShader, pickingShader;
 	
