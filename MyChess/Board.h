@@ -274,6 +274,7 @@ private:
 
 	int kingPosWhite;
 	int kingPosBlack;
+	void FindKings();
 	void SetKingPos(int target);
 
 	bool bInCheckWhite;

@@ -62,21 +62,10 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 	SetupPieces(view, projection);
 	SetupPickingShader(view, projection);
 	SetupPromotionPieces();
-	SetupGame();
-
-	int kingsSet = 0;
-	for (size_t i = 0; kingsSet < 2 && i < 64; i++)
-	{
-		if (pieces[i] != nullptr && pieces[i]->GetType() == KING)
-		{
-			SetKingPos(i);			
-			kingsSet++;
-		}
-	}
 
 	PrepEdges();
 	CalculateEdges();
-	CalculateMoves();
+	SetupGame();
 
 	ShowMenuButtons();
 }
@@ -1839,6 +1828,8 @@ void Board::SetupGame()
 	ClearButtons();
 
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+	FindKings();
+	CalculateMoves();
 }
 
 void Board::PlayCompMove()
@@ -1886,6 +1877,19 @@ template <typename T>
 bool Board::TileInContainer(int target, T container) const
 {
 	return std::find(container.begin(), container.end(), target) != container.end();
+}
+
+void Board::FindKings()
+{
+	int kingsSet = 0;
+	for (size_t i = 0; kingsSet < 2 && i < 64; i++)
+	{
+		if (pieces[i] != nullptr && pieces[i]->GetType() == KING)
+		{
+			SetKingPos(i);
+			kingsSet++;
+		}
+	}
 }
 
 void Board::SetKingPos(int target)
@@ -1987,9 +1991,6 @@ void Board::CalculateEdges()
 			temp += 9;
 		}
 		edgesFromTiles[i].bottomRight = temp;
-
-		// printf("%i\n", i);
-		// edgesFromTiles[i].Print();
 	}
 }
 

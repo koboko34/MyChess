@@ -74,7 +74,7 @@ int main()
 			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
 			pickingTexture.DisableWriting();
 
-			pixel.Print();
+			// pixel.Print();
 
 			if ((int)pixel.objectId >= 100)
 			{
