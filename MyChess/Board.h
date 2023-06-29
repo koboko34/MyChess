@@ -31,6 +31,7 @@ public:
 	~Board();
 
 	void Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow* window, irrklang::ISoundEngine* sEngine);
+	void RenderScene(int selectedObjectId);
 	void DrawBoard(int selectedObjectId);
 	void PickingPass();
 
@@ -42,6 +43,8 @@ public:
 	bool InMainMenu() { return bInMainMenu; }
 
 	void Promote(PieceType pieceType);
+
+	void ButtonCallback(int id);
 
 private:
 
@@ -82,11 +85,11 @@ private:
 
 		void RemoveButton()
 		{
-			for (size_t i = 0; i < board->buttons.size(); i++)
+			while (0 < board->buttons.size())
 			{
-				if (board->buttons[i]->id == id)
+				if (board->buttons[0]->id == id)
 				{
-					board->buttons.erase(board->buttons.begin() + i);
+					board->buttons.erase(board->buttons.begin());
 					return;
 				}
 			}
@@ -113,17 +116,20 @@ private:
 	std::vector<Button*> buttons;
 	void ClearButtons();
 	void RenderButton(Button* button);
+	void RenderButtons();
 
 	void RenderContinueButton();
 	float buttonHeight = 0.13f;
 	float buttonWidth = 0.35f;
 
 	bool bInMainMenu;
+	bool bInGame;
 	void ShowMenuButtons();
 
 	void PlaySingleplayerCallback();
 	void PlayMultiplayerCallback();
 	void QuitGameCallback();
+	void ContinueCallback();
 
 	Shader boardShader, pieceShader, pickingShader;
 	
@@ -316,6 +322,7 @@ private:
 	void ClearCheckingPieces();
 
 	void GameOver(int winningTeam);
+	void SetupGame();
 
 	bool bGameOver;
 	int winner;

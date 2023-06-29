@@ -19,21 +19,21 @@
 
 int WIDTH = 1366; int HEIGHT = 768;
 
-void PromotePiece(unsigned int objectId, Board* board)
+void PromotePiece(unsigned int objectId, Board& board)
 {
 	switch (objectId - 1)
 	{
 	case QUEEN:
-		board->Promote(QUEEN);
+		board.Promote(QUEEN);
 		break;
 	case ROOK:
-		board->Promote(ROOK);
+		board.Promote(ROOK);
 		break;
 	case BISHOP:
-		board->Promote(BISHOP);
+		board.Promote(BISHOP);
 		break;
 	case KNIGHT:
-		board->Promote(KNIGHT);
+		board.Promote(KNIGHT);
 	default:
 		break;
 	}
@@ -47,10 +47,11 @@ int main()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	Board* board = nullptr;
-
 	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
 	soundEngine->setSoundVolume(1.f);
+
+	Board board;
+	board.Init(WIDTH, HEIGHT, window.GetWindow(), soundEngine);
 
 	PickingTexture pickingTexture;
 	pickingTexture.Init(WIDTH, HEIGHT);
@@ -60,12 +61,6 @@ int main()
 	while (!glfwWindowShouldClose(window.GetWindow()))
 	{
 		glfwPollEvents();
-		
-		if (board == nullptr)
-		{
-			board = new Board();
-			board->Init(WIDTH, HEIGHT, window.GetWindow(), soundEngine);
-		}
 
 		if (window.bIsPressed)
 		{
@@ -74,30 +69,24 @@ int main()
 			glClearColor(0.0f, 0.0f, 0.0f, 1.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			board->PickingPass();
+			board.PickingPass();
 
 			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
 			pickingTexture.DisableWriting();
 
-			// pixel.Print();
+			pixel.Print();
 
-			if (board->IsGameOver())
+			if ((int)pixel.objectId >= 100)
 			{
-				if (pixel.objectId - 1 == 0)
-				{
-					delete board;
-					board = nullptr;
-					soundEngine->play2D("sounds/notify.mp3");
-					continue;
-				}
+				board.ButtonCallback(pixel.objectId);
 			}
-			else if (board->IsChoosingPromotion())
+			else if (board.IsChoosingPromotion())
 			{
 				PromotePiece(pixel.objectId, board);
 			}
-			else
+			else if (!board.IsGameOver())
 			{
-				if (clickedObjectId == -1 || !board->PieceExists(clickedObjectId))
+				if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
 				{
 					clickedObjectId = pixel.objectId - 1;
 				}
@@ -107,7 +96,7 @@ int main()
 				}
 				else
 				{
-					board->MovePiece(clickedObjectId, pixel.objectId - 1);
+					board.MovePiece(clickedObjectId, pixel.objectId - 1);
 					clickedObjectId = -1;
 				}
 			}
@@ -115,12 +104,11 @@ int main()
 			window.bIsPressed = false;
 		}
 
-		board->DrawBoard(clickedObjectId);
+		board.RenderScene(clickedObjectId);
 
 		glfwSwapBuffers(window.GetWindow());
 	}
 
-	delete board;
 	glfwTerminate();
 
 	return 0;

@@ -4,22 +4,7 @@ Board::Board()
 {
 	VAO, EBO, VBO = 0;
 	bInMainMenu = true;
-
-	lastMoveSound = NONE;
-	bSetPromoSound = false;
-
-	currentTurn = WHITE;
-	lastEnPassantIndex = -1;
-	enPassantOwner = nullptr;
-	bChoosingPromotion = false;
-	pieceToPromote = -1;
-	lastMoveStart = -1;
-	lastMoveEnd = -1;
-
-	bInCheckBlack = false;
-	bInCheckWhite = false;
-	bGameOver = false;
-	winner = 0;
+	bInGame = false;
 }
 
 Board::~Board()
@@ -77,7 +62,7 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 	SetupPieces(view, projection);
 	SetupPickingShader(view, projection);
 	SetupPromotionPieces();
-	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+	SetupGame();
 
 	int kingsSet = 0;
 	for (size_t i = 0; kingsSet < 2 && i < 64; i++)
@@ -98,31 +83,19 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 
 // ========================================== RENDERING ==========================================
 
-void Board::DrawBoard(int selectedObjectId)
+void Board::RenderScene(int selectedObjectId)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClearColor(0.5f, 0.3f, 0.2f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	boardShader.UseShader();
-	for (Button* button : buttons)
+	if (bInGame)
 	{
-		RenderButton(button);
+		DrawBoard(selectedObjectId);
 	}
 
-	boardShader.UseShader();
-	RenderTiles(selectedObjectId);
-	
-	pieceShader.UseShader();
-	RenderPieces();
+	RenderButtons();
 
-	if (bGameOver)
-	{
-		boardShader.UseShader();
-		RenderContinueButton(); // change to new system when working
-		return;
-	}
-	
 	if (bChoosingPromotion)
 	{
 		boardShader.UseShader();
@@ -132,6 +105,15 @@ void Board::DrawBoard(int selectedObjectId)
 		RenderPromotionPieces();
 		return;
 	}
+}
+
+void Board::DrawBoard(int selectedObjectId)
+{
+	boardShader.UseShader();
+	RenderTiles(selectedObjectId);
+	
+	pieceShader.UseShader();
+	RenderPieces();
 }
 
 void Board::SetupBoard(glm::mat4 view, glm::mat4 projection)
@@ -241,20 +223,7 @@ void Board::PickingPass()
 	pickingShader.UseShader();
 	glBindVertexArray(VAO);
 
-	if (bGameOver) // continue button
-	{
-		unsigned int objectId = 0;
-		GLuint adjustedObjectId = objectId + 1;
-		glUniform1ui(objectIdLocation, adjustedObjectId);
-
-		glm::mat4 tileModel = glm::mat4(1.f);
-		tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * 10 + 0.296f, (2 * 2 - 2) / 16.f, 1.f));
-		tileModel = glm::scale(tileModel, glm::vec3(buttonWidth, buttonHeight, 1.f));
-		glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
-
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-	}
-	else if (bChoosingPromotion)
+	if (bChoosingPromotion)
 	{
 		int file = -1;
 		int rank = 8;
@@ -263,9 +232,9 @@ void Board::PickingPass()
 			unsigned int objectId = type;
 			GLuint adjustedObjectId = objectId + 1;
 			glUniform1ui(objectIdLocation, adjustedObjectId);
-			
+
 			glm::mat4 tileModel = glm::mat4(1.f);
-			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.311f, (rank * 2 - 1 - 1.f) / 16.f, -2.f)); // change z value?
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.311f, (rank * 2 - 1 - 1.f) / 16.f, -2.f));
 			tileModel = glm::scale(tileModel, glm::vec3(tileSize + 0.05, tileSize + 0.05, 1.f));
 			glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
@@ -273,24 +242,43 @@ void Board::PickingPass()
 
 			rank -= 2;
 		}
+		return;
 	}
-	else
+
+	if (!buttons.empty())
 	{
-		for (size_t rank = 8; rank >= 1; rank--)
+		int i = 0;
+		for (Button* button : buttons)
 		{
-			for (size_t file = 1; file <= 8; file++)
-			{
-				unsigned int objectId = (8 - rank) * 8 + file - 1;
-				GLuint adjustedObjectId = objectId + 1;
-				glUniform1ui(objectIdLocation, adjustedObjectId);
+			unsigned int objectId = 100 + i;
+			button->id = objectId;
+			glUniform1ui(objectIdLocation, objectId);
 
-				glm::mat4 tileModel = glm::mat4(1.f);
-				tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 1.f));
-				tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
-				glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+			glm::mat4 tileModel = glm::mat4(1.f);
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -2.f));
+			tileModel = glm::scale(tileModel, glm::vec3((aspect / width) * button->xSize + button->xSizeOffset, button->ySize, 1.f));
+			glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
-				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-			}
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+			i++;
+		}
+		return;
+	}
+
+	for (size_t rank = 8; rank >= 1; rank--)
+	{
+		for (size_t file = 1; file <= 8; file++)
+		{
+			unsigned int objectId = (8 - rank) * 8 + file - 1;
+			GLuint adjustedObjectId = objectId + 1;
+			glUniform1ui(objectIdLocation, adjustedObjectId);
+
+			glm::mat4 tileModel = glm::mat4(1.f);
+			tileModel = glm::translate(tileModel, glm::vec3((aspect / 13.7f) * file + 0.305f, (rank * 2 - 1) / 16.f, 1.f));
+			tileModel = glm::scale(tileModel, glm::vec3(tileSize, tileSize, 1.f));
+			glUniformMatrix4fv(pickingModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		}
 	}
 
@@ -365,6 +353,8 @@ void Board::RenderPieces()
 	glBindVertexArray(0);
 }
 
+// ========================================== BUTTONS ==========================================
+
 void Board::RenderPromotionTiles()
 {
 	glBindVertexArray(VAO);
@@ -421,11 +411,10 @@ void Board::RenderPromotionPieces()
 
 void Board::ClearButtons()
 {
-	for (Button* button : buttons)
+	while (buttons.size() > 0)
 	{
-		delete button;
+		delete buttons[0];
 	}
-	buttons.clear();
 }
 
 void Board::RenderButton(Button* button)
@@ -442,6 +431,18 @@ void Board::RenderButton(Button* button)
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	glBindVertexArray(0);
+}
+
+void Board::RenderButtons()
+{
+	if (!buttons.empty())
+	{
+		boardShader.UseShader();
+		for (Button* button : buttons)
+		{
+			RenderButton(button);
+		}
+	}
 }
 
 void Board::RenderContinueButton()
@@ -462,6 +463,8 @@ void Board::RenderContinueButton()
 
 void Board::ShowMenuButtons()
 {
+	ClearButtons();
+	
 	Button* singleplayerButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
 	singleplayerButton->SetCallback(std::bind(&Board::PlaySingleplayerCallback, this));
 	buttons.push_back(singleplayerButton);
@@ -477,21 +480,44 @@ void Board::ShowMenuButtons()
 
 void Board::PlaySingleplayerCallback()
 {
-	bInMainMenu = false;
 	bVsComputer = true;
-	ClearButtons();
+	bInMainMenu = false;
+	bInGame = true;
+	SetupGame();
+
 }
 
 void Board::PlayMultiplayerCallback()
 {
-	bInMainMenu = false;
 	bVsComputer = false;
-	ClearButtons();
+	bInMainMenu = false;
+	bInGame = true;
+	SetupGame();
 }
 
 void Board::QuitGameCallback()
 {
 	glfwSetWindowShouldClose(window, true);
+}
+
+void Board::ContinueCallback()
+{
+	bInMainMenu = true;
+	bInGame = false;
+	soundEngine->play2D("sounds/notify.mp3");
+	ShowMenuButtons();
+}
+
+void Board::ButtonCallback(int id)
+{
+	for (Button* button : buttons)
+	{
+		if (button->id == id)
+		{
+			button->callback();
+			return;
+		}
+	}
 }
 
 // ========================================== MOVE LOGIC ==========================================
@@ -1791,6 +1817,30 @@ void Board::HandlePinnedPieces()
 	}
 }
 
+void Board::SetupGame()
+{
+	lastMoveSound = NONE;
+	bSetPromoSound = false;
+
+	currentTurn = WHITE;
+	lastEnPassantIndex = -1;
+	enPassantOwner = nullptr;
+	bChoosingPromotion = false;
+	pieceToPromote = -1;
+	lastMoveStart = -1;
+	lastMoveEnd = -1;
+
+	bInCheckBlack = false;
+	bInCheckWhite = false;
+	
+	bGameOver = false;
+	winner = 0;
+
+	ClearButtons();
+
+	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+}
+
 void Board::PlayCompMove()
 {
 	std::random_device rd;
@@ -1820,6 +1870,12 @@ void Board::GameOver(int winningTeam)
 	bGameOver = true;
 	soundEngine->stopAllSounds();
 	soundEngine->play2D("sounds/game-end.mp3");
+
+	ClearButtons();
+	Button* continueButton = new Button(this, (float)width / 8 * 7, 0.038f, 0.2f, (float)width / 8, 0.12f, 0.15f);
+	// Button* continueButton = new Button(this, (float)width / 4 * 3, 0.f, 0.5f, 0.35f, 0.f, 0.13f);
+	continueButton->SetCallback(std::bind(&Board::ContinueCallback, this));
+	buttons.push_back(continueButton);
 
 	printf("%s wins!\n", winner == WHITE ? "White" : "Black");
 }
@@ -1952,13 +2008,21 @@ void Board::Promote(PieceType pieceType)
 
 	delete pieces[pieceToPromote];
 	pieces[pieceToPromote] = new Piece(currentTurn, pieceType);
-	// lastMoveSound = PROMOTE;
 	bChoosingPromotion = false;
 	CompleteTurn();
 }
 
 void Board::SetupBoardFromFEN(std::string fen)
 {
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (pieces[i] == nullptr)
+			continue;
+
+		delete pieces[i];
+		pieces[i] = nullptr;
+	}
+	
 	int index = 0;
 	PieceTeam team;
 
