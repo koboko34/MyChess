@@ -207,6 +207,11 @@ void Board::SetupPromotionPieces()
 	}
 }
 
+void Board::SetupFont()
+{
+	// to do
+}
+
 void Board::PickingPass()
 {
 	pickingShader.UseShader();
@@ -410,7 +415,7 @@ void Board::RenderButton(Button* button)
 {
 	glBindVertexArray(VAO);
 
-	glUniform3f(tileColorLocation, 0.1f, 0.1f, 0.1f);
+	glUniform3f(tileColorLocation, button->color.x, button->color.y, button->color.z);
 
 	glm::mat4 tileModel = glm::mat4(1.f);
 	tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -2.f));
@@ -472,10 +477,12 @@ void Board::PlaySingleplayerCallback()
 	ClearButtons();
 	
 	Button* playWhiteButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	playWhiteButton->SetColor(1.f, 1.f, 1.f);
 	playWhiteButton->SetCallback(std::bind(&Board::PlayWhiteCallback, this));
 	buttons.push_back(playWhiteButton);
 
 	Button* playBlackButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	playBlackButton->SetColor(0.f, 0.f, 0.f);
 	playBlackButton->SetCallback(std::bind(&Board::PlayBlackCallback, this));
 	buttons.push_back(playBlackButton);
 
@@ -626,7 +633,11 @@ bool Board::MovePiece(int startTile, int endTile)
 	else
 		lastMoveSound = MOVE_SELF;
 
-	if (!bChoosingPromotion)
+	if (bChoosingPromotion && bVsComputer && currentTurn == compTeam)
+	{
+		Promote(QUEEN);
+	}
+	else if (!bChoosingPromotion)
 	{
 		CompleteTurn();
 	}

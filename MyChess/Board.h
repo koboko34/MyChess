@@ -57,6 +57,7 @@ private:
 	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
 	void SetupPromotionPieces();
 	void SetupBoardFromFEN(std::string fen);
+	void SetupFont();
 
 	bool ShouldHighlightSelectedObject(int selectedObjectId, int objectId);
 	bool ShouldHighlightLastMove(int objectId);
@@ -83,6 +84,13 @@ private:
 
 		void SetCallback(std::function<void()> fn) { callback = fn; }
 
+		void SetColor(GLfloat x, GLfloat y, GLfloat z)
+		{
+			color.x = x;
+			color.y = y;
+			color.z = z;
+		}
+
 		void RemoveButton()
 		{
 			while (0 < board->buttons.size())
@@ -104,6 +112,8 @@ private:
 		std::function<void()> callback;
 
 		int id;
+
+		glm::vec3 color = glm::vec3(0.3f, 0.3f, 0.9f);
 
 		float xPos;
 		float xPosOffset;
