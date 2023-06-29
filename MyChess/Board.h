@@ -127,6 +127,8 @@ private:
 	void ShowMenuButtons();
 
 	void PlaySingleplayerCallback();
+	void PlayWhiteCallback();
+	void PlayBlackCallback();
 	void PlayMultiplayerCallback();
 	void QuitGameCallback();
 	void ContinueCallback();

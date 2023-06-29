@@ -469,11 +469,38 @@ void Board::ShowMenuButtons()
 
 void Board::PlaySingleplayerCallback()
 {
+	ClearButtons();
+	
+	Button* playWhiteButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	playWhiteButton->SetCallback(std::bind(&Board::PlayWhiteCallback, this));
+	buttons.push_back(playWhiteButton);
+
+	Button* playBlackButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	playBlackButton->SetCallback(std::bind(&Board::PlayBlackCallback, this));
+	buttons.push_back(playBlackButton);
+
+	Button* backButton = new Button(this, (float)width / 4 * 2, 0.f, 0.3f, (float)width / 4, 0.f, 0.2f);
+	backButton->SetCallback(std::bind(&Board::ShowMenuButtons, this));
+	buttons.push_back(backButton);
+}
+
+void Board::PlayWhiteCallback()
+{
+	compTeam = BLACK;
 	bVsComputer = true;
 	bInMainMenu = false;
 	bInGame = true;
 	SetupGame();
+}
 
+void Board::PlayBlackCallback()
+{
+	compTeam = WHITE;
+	bVsComputer = true;
+	bInMainMenu = false;
+	bInGame = true;
+	SetupGame();
+	PlayCompMove();
 }
 
 void Board::PlayMultiplayerCallback()
