@@ -1396,7 +1396,7 @@ void Board::AddToAttackSet(int startTile, int target)
 void Board::CalculateCheck()
 {
 	int kingPos = currentTurn == WHITE ? kingPosWhite : kingPosBlack;
-	
+
 	if (currentTurn == WHITE)
 	{
 		if (TileInContainer(kingPos, attackSetBlack))
@@ -1453,6 +1453,30 @@ void Board::CalculateCheck()
 	if (bSetPromoSound)
 	{
 		bSetPromoSound = false;
+	}
+
+	if (!bInCheckWhite && !bInCheckBlack)
+	{
+		if (currentTurn == WHITE)
+		{
+			for (int move : attackMapWhite[kingPosWhite])
+			{
+				if (TileInContainer(move, attackSetBlack))
+				{
+					attackMapWhite[kingPosWhite].erase(std::remove(attackMapWhite[kingPosWhite].begin(), attackMapWhite[kingPosWhite].end(), move), attackMapWhite[kingPosWhite].end());
+				}
+			}
+		}
+		else
+		{
+			for (int move : attackMapBlack[kingPosBlack])
+			{
+				if (TileInContainer(move, attackSetWhite))
+				{
+					attackMapBlack[kingPosBlack].erase(std::remove(attackMapBlack[kingPosBlack].begin(), attackMapBlack[kingPosBlack].end(), move), attackMapBlack[kingPosBlack].end());
+				}
+			}
+		}
 	}
 }
 
