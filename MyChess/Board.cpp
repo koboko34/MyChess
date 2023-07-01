@@ -1459,23 +1459,62 @@ void Board::CalculateCheck()
 	{
 		if (currentTurn == WHITE)
 		{
+			std::vector<int> movesToRemove;
 			for (int move : attackMapWhite[kingPosWhite])
 			{
 				if (TileInContainer(move, attackSetBlack))
 				{
+					movesToRemove.push_back(move);
+				}
+			}
+
+			if (!movesToRemove.empty())
+			{
+				for (int move : movesToRemove)
+				{
 					attackMapWhite[kingPosWhite].erase(std::remove(attackMapWhite[kingPosWhite].begin(), attackMapWhite[kingPosWhite].end(), move), attackMapWhite[kingPosWhite].end());
 				}
 			}
+
+			for (std::vector<int>& pieceMoves : attackMapWhite)
+			{
+				if (!pieceMoves.empty())
+				{
+					return;
+				}
+			}
+
+			GameOver(NONE);
 		}
 		else
 		{
+			std::vector<int> movesToRemove;
 			for (int move : attackMapBlack[kingPosBlack])
 			{
 				if (TileInContainer(move, attackSetWhite))
 				{
-					attackMapBlack[kingPosBlack].erase(std::remove(attackMapBlack[kingPosBlack].begin(), attackMapBlack[kingPosBlack].end(), move), attackMapBlack[kingPosBlack].end());
+					movesToRemove.push_back(move);
 				}
 			}
+
+			if (!movesToRemove.empty())
+			{
+				for (int move : movesToRemove)
+				{
+					attackMapBlack[kingPosBlack].erase(std::remove(attackMapBlack[kingPosBlack].begin(), attackMapBlack[kingPosBlack].end(), move), attackMapBlack[kingPosBlack].end());
+
+				}
+			}
+
+			for (std::vector<int>& pieceMoves : attackMapBlack)
+			{
+				if (!pieceMoves.empty())
+				{
+					return;
+				}
+			}
+
+			GameOver(NONE);
 		}
 	}
 }
@@ -1926,9 +1965,14 @@ void Board::GameOver(int winningTeam)
 
 	ClearButtons();
 	Button* continueButton = new Button(this, (float)width / 8 * 7, 0.038f, 0.2f, (float)width / 8, 0.12f, 0.15f);
-	// Button* continueButton = new Button(this, (float)width / 4 * 3, 0.f, 0.5f, 0.35f, 0.f, 0.13f);
 	continueButton->SetCallback(std::bind(&Board::ContinueCallback, this));
 	buttons.push_back(continueButton);
+
+	if (winner == NONE)
+	{
+		printf("Stalemate!\n");
+		return;
+	}
 
 	printf("%s wins!\n", winner == WHITE ? "White" : "Black");
 }
