@@ -334,6 +334,7 @@ private:
 
 	void ClearCheckingPieces();
 
+	void CheckStalemate();
 	void GameOver(int winningTeam);
 	void SetupGame();
 

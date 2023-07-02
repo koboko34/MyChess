@@ -1457,65 +1457,7 @@ void Board::CalculateCheck()
 
 	if (!bInCheckWhite && !bInCheckBlack)
 	{
-		if (currentTurn == WHITE)
-		{
-			std::vector<int> movesToRemove;
-			for (int move : attackMapWhite[kingPosWhite])
-			{
-				if (TileInContainer(move, attackSetBlack))
-				{
-					movesToRemove.push_back(move);
-				}
-			}
-
-			if (!movesToRemove.empty())
-			{
-				for (int move : movesToRemove)
-				{
-					attackMapWhite[kingPosWhite].erase(std::remove(attackMapWhite[kingPosWhite].begin(), attackMapWhite[kingPosWhite].end(), move), attackMapWhite[kingPosWhite].end());
-				}
-			}
-
-			for (std::vector<int>& pieceMoves : attackMapWhite)
-			{
-				if (!pieceMoves.empty())
-				{
-					return;
-				}
-			}
-
-			GameOver(NONE);
-		}
-		else
-		{
-			std::vector<int> movesToRemove;
-			for (int move : attackMapBlack[kingPosBlack])
-			{
-				if (TileInContainer(move, attackSetWhite))
-				{
-					movesToRemove.push_back(move);
-				}
-			}
-
-			if (!movesToRemove.empty())
-			{
-				for (int move : movesToRemove)
-				{
-					attackMapBlack[kingPosBlack].erase(std::remove(attackMapBlack[kingPosBlack].begin(), attackMapBlack[kingPosBlack].end(), move), attackMapBlack[kingPosBlack].end());
-
-				}
-			}
-
-			for (std::vector<int>& pieceMoves : attackMapBlack)
-			{
-				if (!pieceMoves.empty())
-				{
-					return;
-				}
-			}
-
-			GameOver(NONE);
-		}
+		CheckStalemate();
 	}
 }
 
@@ -1953,6 +1895,69 @@ void Board::PlayCompMove()
 		{
 			return;
 		}
+	}
+}
+
+void Board::CheckStalemate()
+{
+	if (currentTurn == WHITE)
+	{
+		std::vector<int> movesToRemove;
+		for (int move : attackMapWhite[kingPosWhite])
+		{
+			if (TileInContainer(move, attackSetBlack))
+			{
+				movesToRemove.push_back(move);
+			}
+		}
+
+		if (!movesToRemove.empty())
+		{
+			for (int move : movesToRemove)
+			{
+				attackMapWhite[kingPosWhite].erase(std::remove(attackMapWhite[kingPosWhite].begin(), attackMapWhite[kingPosWhite].end(), move), attackMapWhite[kingPosWhite].end());
+			}
+		}
+
+		for (std::vector<int>& pieceMoves : attackMapWhite)
+		{
+			if (!pieceMoves.empty())
+			{
+				return;
+			}
+		}
+
+		GameOver(NONE);
+	}
+	else
+	{
+		std::vector<int> movesToRemove;
+		for (int move : attackMapBlack[kingPosBlack])
+		{
+			if (TileInContainer(move, attackSetWhite))
+			{
+				movesToRemove.push_back(move);
+			}
+		}
+
+		if (!movesToRemove.empty())
+		{
+			for (int move : movesToRemove)
+			{
+				attackMapBlack[kingPosBlack].erase(std::remove(attackMapBlack[kingPosBlack].begin(), attackMapBlack[kingPosBlack].end(), move), attackMapBlack[kingPosBlack].end());
+
+			}
+		}
+
+		for (std::vector<int>& pieceMoves : attackMapBlack)
+		{
+			if (!pieceMoves.empty())
+			{
+				return;
+			}
+		}
+
+		GameOver(NONE);
 	}
 }
 

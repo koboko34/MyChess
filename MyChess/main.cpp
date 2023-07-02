@@ -19,7 +19,25 @@
 
 int WIDTH = 1366; int HEIGHT = 768;
 
-void PromotePiece(unsigned int objectId, Board& board)
+Window window;
+Board board;
+PickingTexture pickingTexture;
+PickingTexture::PixelInfo pixel;
+
+void PickPixel(double mouseX, double mouseY)
+{
+	pickingTexture.EnableWriting();
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	board.PickingPass();
+
+	pixel = pickingTexture.ReadPixel(mouseX, HEIGHT - mouseY - 1);
+	pickingTexture.DisableWriting();
+}
+
+void PromotePiece(unsigned int objectId)
 {
 	switch (objectId - 1)
 	{
@@ -39,9 +57,25 @@ void PromotePiece(unsigned int objectId, Board& board)
 	}
 }
 
+void HandleBoardClick(int& clickedObjectId)
+{
+	if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
+	{
+		clickedObjectId = pixel.objectId - 1;
+	}
+	else if (clickedObjectId == pixel.objectId - 1)
+	{
+		clickedObjectId = -1;
+	}
+	else
+	{
+		board.MovePiece(clickedObjectId, pixel.objectId - 1);
+		clickedObjectId = -1;
+	}
+}
+
 int main()
 {
-	Window window;
 	window.Initialise(WIDTH, HEIGHT, false);
 
 	glEnable(GL_BLEND);
@@ -50,12 +84,9 @@ int main()
 	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
 	soundEngine->setSoundVolume(1.f);
 
-	Board board;
 	board.Init(WIDTH, HEIGHT, window.GetWindow(), soundEngine);
 
-	PickingTexture pickingTexture;
 	pickingTexture.Init(WIDTH, HEIGHT);
-	PickingTexture::PixelInfo pixel;
 	int clickedObjectId = -1;
 
 	while (!glfwWindowShouldClose(window.GetWindow()))
@@ -64,16 +95,7 @@ int main()
 
 		if (window.bIsPressed)
 		{
-			pickingTexture.EnableWriting();
-
-			glClearColor(0.0f, 0.0f, 0.0f, 1.f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			board.PickingPass();
-
-			pixel = pickingTexture.ReadPixel(window.mouseX, HEIGHT - window.mouseY - 1);
-			pickingTexture.DisableWriting();
-
+			PickPixel(window.mouseX, window.mouseY);
 			// pixel.Print();
 
 			if ((int)pixel.objectId >= 100)
@@ -82,23 +104,11 @@ int main()
 			}
 			else if (board.IsChoosingPromotion())
 			{
-				PromotePiece(pixel.objectId, board);
+				PromotePiece(pixel.objectId);
 			}
 			else if (!board.IsGameOver())
 			{
-				if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
-				{
-					clickedObjectId = pixel.objectId - 1;
-				}
-				else if (clickedObjectId == pixel.objectId - 1)
-				{
-					clickedObjectId = -1;
-				}
-				else
-				{
-					board.MovePiece(clickedObjectId, pixel.objectId - 1);
-					clickedObjectId = -1;
-				}
+				HandleBoardClick(clickedObjectId);
 			}
 			
 			window.bIsPressed = false;
