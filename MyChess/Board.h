@@ -24,6 +24,8 @@
 #include "Shader.h"
 #include "Piece.h"
 
+class Button;
+
 class Board
 {
 public:
@@ -45,6 +47,7 @@ public:
 	void Promote(PieceType pieceType);
 
 	void ButtonCallback(int id);
+	std::vector<Button*>& GetButtons() { return buttons; }
 
 private:
 
@@ -67,61 +70,6 @@ private:
 
 	void RenderPromotionTiles();
 	void RenderPromotionPieces();
-
-	struct Button
-	{
-		Button(Board* board, float xPositon, float xPositionOffset, float yPosition, float xSize, float xSizeOffset, float ySize)
-		{
-			this->board = board;
-
-			xPos = xPositon;
-			xPosOffset = xPositionOffset;
-			yPos = yPosition;
-			this->xSize = xSize;
-			this->xSizeOffset = xSizeOffset;
-			this->ySize = ySize;
-		}
-
-		void SetCallback(std::function<void()> fn) { callback = fn; }
-
-		void SetColor(GLfloat x, GLfloat y, GLfloat z)
-		{
-			color.x = x;
-			color.y = y;
-			color.z = z;
-		}
-
-		void RemoveButton()
-		{
-			while (0 < board->buttons.size())
-			{
-				if (board->buttons[0]->id == id)
-				{
-					board->buttons.erase(board->buttons.begin());
-					return;
-				}
-			}
-		}
-
-		~Button()
-		{
-			RemoveButton();
-		}
-
-		Board* board;
-		std::function<void()> callback;
-
-		int id;
-
-		glm::vec3 color = glm::vec3(0.3f, 0.3f, 0.9f);
-
-		float xPos;
-		float xPosOffset;
-		float yPos;
-		float xSize;
-		float xSizeOffset;
-		float ySize;
-	};
 
 	std::vector<Button*> buttons;
 	void ClearButtons();
@@ -334,15 +282,15 @@ private:
 
 	void ClearCheckingPieces();
 
-	void CheckStalemate();
+	bool CheckStalemate();
 	void GameOver(int winningTeam);
 	void SetupGame();
 
 	bool bGameOver;
 	int winner;
 
-	bool bVsComputer = false; // set dynamically on main menu once added
-	PieceTeam compTeam = BLACK; // set dynamically when selecting team
+	bool bVsComputer = false;
+	PieceTeam compTeam = BLACK;
 
 	void PlayCompMove();
 

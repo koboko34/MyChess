@@ -37,9 +37,6 @@ Piece::~Piece()
 void Piece::DrawPiece()
 {
 	glBindVertexArray(VAO);
-
-	// GL_LINE for wireframe, GL_FILL for standard
-	// glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 

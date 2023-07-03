@@ -1,5 +1,7 @@
 #include "Board.h"
 
+#include "Button.h"
+
 Board::Board()
 {
 	VAO, EBO, VBO = 0;
@@ -413,6 +415,8 @@ void Board::ClearButtons()
 
 void Board::RenderButton(Button* button)
 {
+	boardShader.UseShader();
+
 	glBindVertexArray(VAO);
 
 	glUniform3f(tileColorLocation, button->color.x, button->color.y, button->color.z);
@@ -425,13 +429,30 @@ void Board::RenderButton(Button* button)
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	glBindVertexArray(0);
+
+	if (!button->bUseTexture)
+	{
+		return;
+	}
+
+	// draw texture
+
+	pieceShader.UseShader();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, button->textureId);
+
+	glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+	glBindVertexArray(button->VAO);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
 }
 
 void Board::RenderButtons()
 {
 	if (!buttons.empty())
 	{
-		boardShader.UseShader();
 		for (Button* button : buttons)
 		{
 			RenderButton(button);
@@ -461,6 +482,8 @@ void Board::ShowMenuButtons()
 	
 	Button* singleplayerButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
 	singleplayerButton->SetCallback(std::bind(&Board::PlaySingleplayerCallback, this));
+	singleplayerButton->bUseTexture = true;
+	singleplayerButton->SetTexture("textures/buttons/1p.png");
 	buttons.push_back(singleplayerButton);
 
 	Button* multiplayerButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
@@ -1395,6 +1418,12 @@ void Board::AddToAttackSet(int startTile, int target)
 
 void Board::CalculateCheck()
 {
+	if (CheckStalemate())
+	{
+		GameOver(NONE);
+		return;
+	}
+	
 	int kingPos = currentTurn == WHITE ? kingPosWhite : kingPosBlack;
 
 	if (currentTurn == WHITE)
@@ -1453,11 +1482,6 @@ void Board::CalculateCheck()
 	if (bSetPromoSound)
 	{
 		bSetPromoSound = false;
-	}
-
-	if (!bInCheckWhite && !bInCheckBlack)
-	{
-		CheckStalemate();
 	}
 }
 
@@ -1898,7 +1922,7 @@ void Board::PlayCompMove()
 	}
 }
 
-void Board::CheckStalemate()
+bool Board::CheckStalemate()
 {
 	if (currentTurn == WHITE)
 	{
@@ -1919,15 +1943,19 @@ void Board::CheckStalemate()
 			}
 		}
 
+		if (!bInCheckWhite)
+		{
+			return false;
+		}
+
 		for (std::vector<int>& pieceMoves : attackMapWhite)
 		{
 			if (!pieceMoves.empty())
 			{
-				return;
+				return false;
 			}
 		}
 
-		GameOver(NONE);
 	}
 	else
 	{
@@ -1949,16 +1977,21 @@ void Board::CheckStalemate()
 			}
 		}
 
+		if (!bInCheckBlack)
+		{
+			return false;
+		}
+
 		for (std::vector<int>& pieceMoves : attackMapBlack)
 		{
 			if (!pieceMoves.empty())
 			{
-				return;
+				return false;
 			}
 		}
-
-		GameOver(NONE);
 	}
+
+	return true;
 }
 
 void Board::GameOver(int winningTeam)
