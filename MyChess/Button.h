@@ -35,6 +35,7 @@ public:
 
 	bool bUseTexture = false;
 	bool bTextureSet = false;
+	bool bFillButton = true;
 	GLuint VAO, EBO, VBO, textureId = 0;
 
 private:

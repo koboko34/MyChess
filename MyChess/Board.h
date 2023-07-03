@@ -90,6 +90,8 @@ private:
 	void PlayMultiplayerCallback();
 	void QuitGameCallback();
 	void ContinueCallback();
+	
+	void EmptyFunction();
 
 	Shader boardShader, pieceShader, pickingShader;
 	
@@ -284,6 +286,7 @@ private:
 
 	bool CheckStalemate();
 	void GameOver(int winningTeam);
+	void ShowWinnerMessage();
 	void SetupGame();
 
 	bool bGameOver;

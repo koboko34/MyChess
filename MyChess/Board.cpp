@@ -415,33 +415,37 @@ void Board::ClearButtons()
 
 void Board::RenderButton(Button* button)
 {
-	boardShader.UseShader();
+	if (button->bFillButton)
+	{
+		boardShader.UseShader();
 
-	glBindVertexArray(VAO);
+		glBindVertexArray(VAO);
 
-	glUniform3f(tileColorLocation, button->color.x, button->color.y, button->color.z);
+		glUniform3f(tileColorLocation, button->color.x, button->color.y, button->color.z);
 
-	glm::mat4 tileModel = glm::mat4(1.f);
-	tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -2.f));
-	tileModel = glm::scale(tileModel, glm::vec3((aspect / width) * button->xSize + button->xSizeOffset, button->ySize, 1.f));
-	glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+		glm::mat4 tileModel = glm::mat4(1.f);
+		tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -2.f));
+		tileModel = glm::scale(tileModel, glm::vec3((aspect / width) * button->xSize + button->xSizeOffset, button->ySize, 1.f));
+		glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-	glBindVertexArray(0);
+		glBindVertexArray(0);
+	}
 
 	if (!button->bUseTexture)
 	{
 		return;
 	}
 
-	// draw texture
-
 	pieceShader.UseShader();
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, button->textureId);
 
+	glm::mat4 tileModel = glm::mat4(1.f);
+	tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -1.f));
+	tileModel = glm::scale(tileModel, glm::vec3((aspect / width) * button->xSize + button->xSizeOffset, button->ySize, 1.f));
 	glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
 	glBindVertexArray(button->VAO);
@@ -479,19 +483,30 @@ void Board::RenderContinueButton()
 void Board::ShowMenuButtons()
 {
 	ClearButtons();
+
+	Button* title = new Button(this, (float)width / 4 * 2, 0.f, 0.8f, (float)width / 2, 0.f, 0.4f);
+	title->SetCallback(std::bind(&Board::EmptyFunction, this));
+	title->bFillButton = false;
+	title->bUseTexture = true;
+	title->SetTexture("textures/buttons/title.png");
+	buttons.push_back(title);
 	
-	Button* singleplayerButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	Button* singleplayerButton = new Button(this, (float)width / 4, 0.1f, 0.5f, (float)width / 4, 0.f, 0.2f);
 	singleplayerButton->SetCallback(std::bind(&Board::PlaySingleplayerCallback, this));
 	singleplayerButton->bUseTexture = true;
 	singleplayerButton->SetTexture("textures/buttons/1p.png");
 	buttons.push_back(singleplayerButton);
 
-	Button* multiplayerButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	Button* multiplayerButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.5f, (float)width / 4, 0.f, 0.2f);
 	multiplayerButton->SetCallback(std::bind(&Board::PlayMultiplayerCallback, this));
+	multiplayerButton->bUseTexture = true;
+	multiplayerButton->SetTexture("textures/buttons/2p.png");
 	buttons.push_back(multiplayerButton);
 
-	Button* quitButton = new Button(this, (float)width / 4 * 2, 0.f, 0.3f, (float)width / 4, 0.f, 0.2f);
+	Button* quitButton = new Button(this, (float)width / 4 * 2, 0.f, 0.2f, (float)width / 4, 0.f, 0.2f);
 	quitButton->SetCallback(std::bind(&Board::QuitGameCallback, this));
+	quitButton->bUseTexture = true;
+	quitButton->SetTexture("textures/buttons/quit.png");
 	buttons.push_back(quitButton);
 }
 
@@ -502,15 +517,21 @@ void Board::PlaySingleplayerCallback()
 	Button* playWhiteButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
 	playWhiteButton->SetColor(1.f, 1.f, 1.f);
 	playWhiteButton->SetCallback(std::bind(&Board::PlayWhiteCallback, this));
+	playWhiteButton->bUseTexture = true;
+	playWhiteButton->SetTexture("textures/buttons/white.png");
 	buttons.push_back(playWhiteButton);
 
 	Button* playBlackButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
 	playBlackButton->SetColor(0.f, 0.f, 0.f);
 	playBlackButton->SetCallback(std::bind(&Board::PlayBlackCallback, this));
+	playBlackButton->bUseTexture = true;
+	playBlackButton->SetTexture("textures/buttons/black.png");
 	buttons.push_back(playBlackButton);
 
 	Button* backButton = new Button(this, (float)width / 4 * 2, 0.f, 0.3f, (float)width / 4, 0.f, 0.2f);
 	backButton->SetCallback(std::bind(&Board::ShowMenuButtons, this));
+	backButton->bUseTexture = true;
+	backButton->SetTexture("textures/buttons/back.png");
 	buttons.push_back(backButton);
 }
 
@@ -552,6 +573,11 @@ void Board::ContinueCallback()
 	bInGame = false;
 	soundEngine->play2D("sounds/notify.mp3");
 	ShowMenuButtons();
+}
+
+void Board::EmptyFunction()
+{
+	return;
 }
 
 void Board::ButtonCallback(int id)
@@ -1464,7 +1490,7 @@ void Board::CalculateCheck()
 
 			if (moveCount <= 0)
 			{
-				GameOver(BLACK);
+				GameOver(WHITE);
 				return;
 			}
 
@@ -1943,7 +1969,7 @@ bool Board::CheckStalemate()
 			}
 		}
 
-		if (!bInCheckWhite)
+		if (TileInContainer(kingPosWhite, attackSetBlack))
 		{
 			return false;
 		}
@@ -1955,7 +1981,6 @@ bool Board::CheckStalemate()
 				return false;
 			}
 		}
-
 	}
 	else
 	{
@@ -1977,7 +2002,7 @@ bool Board::CheckStalemate()
 			}
 		}
 
-		if (!bInCheckBlack)
+		if (TileInContainer(kingPosBlack, attackSetWhite))
 		{
 			return false;
 		}
@@ -2004,7 +2029,11 @@ void Board::GameOver(int winningTeam)
 	ClearButtons();
 	Button* continueButton = new Button(this, (float)width / 8 * 7, 0.038f, 0.2f, (float)width / 8, 0.12f, 0.15f);
 	continueButton->SetCallback(std::bind(&Board::ContinueCallback, this));
+	continueButton->bUseTexture = true;
+	continueButton->SetTexture("textures/buttons/continue.png");
 	buttons.push_back(continueButton);
+
+	ShowWinnerMessage();
 
 	if (winner == NONE)
 	{
@@ -2155,6 +2184,37 @@ void Board::Promote(PieceType pieceType)
 	pieces[pieceToPromote] = new Piece(currentTurn, pieceType);
 	bChoosingPromotion = false;
 	CompleteTurn();
+}
+
+void Board::ShowWinnerMessage()
+{
+	if (winner == WHITE)
+	{
+		Button* winText = new Button(this, (float)width / 8 * 7, 0.038f, 0.7f, (float)width / 8, 0.12f, 0.15f);
+		winText->SetCallback(std::bind(&Board::EmptyFunction, this));
+		winText->bFillButton = false;
+		winText->bUseTexture = true;
+		winText->SetTexture("textures/buttons/white_wins.png");
+		buttons.push_back(winText);
+	}
+	else if (winner == BLACK)
+	{
+		Button* winText = new Button(this, (float)width / 8 * 7, 0.038f, 0.7f, (float)width / 8, 0.12f, 0.15f);
+		winText->SetCallback(std::bind(&Board::EmptyFunction, this));
+		winText->bFillButton = false;
+		winText->bUseTexture = true;
+		winText->SetTexture("textures/buttons/black_wins.png");
+		buttons.push_back(winText);
+	}
+	else
+	{
+		Button* winText = new Button(this, (float)width / 8 * 7, 0.038f, 0.7f, (float)width / 8, 0.12f, 0.15f);
+		winText->SetCallback(std::bind(&Board::EmptyFunction, this));
+		winText->bFillButton = false;
+		winText->bUseTexture = true;
+		winText->SetTexture("textures/buttons/stalemate.png");
+		buttons.push_back(winText);
+	}
 }
 
 void Board::SetupBoardFromFEN(std::string fen)
