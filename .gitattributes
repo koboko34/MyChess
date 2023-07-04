@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+ExternalLibs/** linguist-vendored
+MyChess/stb_image.h -linguist-vendored
