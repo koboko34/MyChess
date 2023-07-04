@@ -1,6 +1,11 @@
 #include "Board.h"
 
+#include <charconv>
+#include <chrono>
+
 #include "Button.h"
+
+#define TESTING 1
 
 Board::Board()
 {
@@ -67,7 +72,7 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 
 	PrepEdges();
 	CalculateEdges();
-	SetupGame();
+	SetupGame(false);
 
 	ShowMenuButtons();
 }
@@ -421,11 +426,20 @@ void Board::RenderButton(Button* button)
 
 		glBindVertexArray(VAO);
 
-		glUniform3f(tileColorLocation, button->color.x, button->color.y, button->color.z);
+		glUniform3f(tileColorLocation, button->color.x / 2, button->color.y / 2, button->color.z / 2);
 
 		glm::mat4 tileModel = glm::mat4(1.f);
-		tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -2.f));
+		tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -3.f));
 		tileModel = glm::scale(tileModel, glm::vec3((aspect / width) * button->xSize + button->xSizeOffset, button->ySize, 1.f));
+		glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
+
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+		glUniform3f(tileColorLocation, button->color.x, button->color.y, button->color.z);
+
+		tileModel = glm::mat4(1.f);
+		tileModel = glm::translate(tileModel, glm::vec3((aspect / width) * button->xPos + button->xPosOffset, button->yPos, -2.f));
+		tileModel = glm::scale(tileModel, glm::vec3((aspect / width) * button->xSize - 0.02f + button->xSizeOffset, button->ySize - 0.02f, 1.f));
 		glUniformMatrix4fv(tileModelLocation, 1, GL_FALSE, glm::value_ptr(tileModel));
 
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -508,6 +522,13 @@ void Board::ShowMenuButtons()
 	quitButton->bUseTexture = true;
 	quitButton->SetTexture("textures/buttons/quit.png");
 	buttons.push_back(quitButton);
+
+#if TESTING == 1
+	Button* shannonTestButton = new Button(this, (float)width / 8 * 7, 0.f, 0.8f, (float)width / 8, 0.f, 0.15f);
+	shannonTestButton->SetCallback(std::bind(&Board::ShannonTestCallback, this));
+	buttons.push_back(shannonTestButton);
+#endif
+
 }
 
 void Board::PlaySingleplayerCallback()
@@ -541,7 +562,7 @@ void Board::PlayWhiteCallback()
 	bVsComputer = true;
 	bInMainMenu = false;
 	bInGame = true;
-	SetupGame();
+	SetupGame(false);
 }
 
 void Board::PlayBlackCallback()
@@ -550,7 +571,7 @@ void Board::PlayBlackCallback()
 	bVsComputer = true;
 	bInMainMenu = false;
 	bInGame = true;
-	SetupGame();
+	SetupGame(false);
 	PlayCompMove();
 }
 
@@ -559,7 +580,7 @@ void Board::PlayMultiplayerCallback()
 	bVsComputer = false;
 	bInMainMenu = false;
 	bInGame = true;
-	SetupGame();
+	SetupGame(false);
 }
 
 void Board::QuitGameCallback()
@@ -573,6 +594,213 @@ void Board::ContinueCallback()
 	bInGame = false;
 	soundEngine->play2D("sounds/notify.mp3");
 	ShowMenuButtons();
+}
+
+void Board::ShannonTestCallback()
+{
+	const int depth = 3;
+	int moveCount;
+	
+	printf("\nStarting test suite at depth %i:\n", depth);
+
+	for (size_t currentDepth = 1; currentDepth <= depth; currentDepth++)
+	{
+		SetupGame(true);
+		int ply = 1;
+
+		auto start = std::chrono::high_resolution_clock::now();
+		moveCount = ShannonTest(ply, currentDepth);
+		auto end = std::chrono::high_resolution_clock::now();
+
+		std::chrono::duration<float> duration = end - start;
+
+		printf("Depth %i: %i possible moves. Calculated in: %f seconds.\n", currentDepth, moveCount, duration.count());
+	}
+
+	printf("Testing complete!\n");
+}
+
+int Board::ShannonTest(int ply, const int depth)
+{
+	int moveCount = 0;
+
+	if (ply > depth)
+	{
+		return 1;
+	}
+
+	// save current board state (locations and whether piece moved for castling etc)
+	std::string fen = BoardToFEN();
+	std::vector<BoardState> boardState;
+	CaptureBoardState(boardState);
+	// capture pinned pieces
+	int lastEnPassant = lastEnPassantIndex;
+	bool bLocalCheckWhite = bInCheckWhite;
+	bool bLocalCheckBlack = bInCheckBlack;
+	PieceTeam turn = currentTurn;
+
+	std::vector<int> attackMap[64];
+	if (turn == WHITE)
+	{
+		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
+	}
+	else
+	{
+		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
+	}
+
+	// for each move
+	for (size_t startTile = 0; startTile < 64; startTile++)
+	{
+		std::vector<int> movesFound;
+		
+		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != turn || attackMap[startTile].empty())
+			continue;
+
+		for (int move : attackMap[startTile])
+		{
+			if (TileInContainer(move, movesFound))
+			{
+				printf("MOVE ALREADY IN CONTAINER! FOUND MORE THAN ONCE!\n");
+			}
+			movesFound.push_back(move);
+			
+			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
+			turn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
+			for (int tileMove : attackMap[startTile])
+			{
+				turn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
+			}
+
+			// play move
+			MovePiece(startTile, move);
+
+			// calc deeper moves with recursion and add
+			moveCount += ShannonTest(ply + 1, depth);
+
+			// undo move by restoring board state
+			lastEnPassantIndex = lastEnPassant;
+			SetupBoardFromFEN(fen);
+			RecoverBoardState(boardState);
+			currentTurn = turn;
+			bGameOver = false;
+			bInCheckWhite = bLocalCheckWhite;
+			bInCheckBlack = bLocalCheckWhite;
+		}
+	}
+
+	return moveCount;
+}
+
+std::string Board::BoardToFEN()
+{
+	std::string fen;
+	std::string fenChar = "";
+	int length = 0;
+	int spaces = 0;
+
+	for (Piece* piece : pieces)
+	{
+		// printf("%s\n", fen.c_str());
+		
+		if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
+		{
+			fen.append("/");
+			spaces = 0;
+		}
+
+		if (piece == nullptr)
+		{
+			spaces++;
+			if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
+			{
+				fenChar = std::to_string(spaces);
+				fen.append(fenChar);
+				length += spaces;
+				spaces = 0;
+			}
+			continue;
+		}
+
+		if (spaces != 0)
+		{
+			fenChar = std::to_string(spaces);
+			fen.append(fenChar);
+			length += spaces;
+			spaces = 0;
+		}
+
+		if ((length + spaces) % 8 == 0 && (length + spaces) != 0 && fen.back() != '/')
+		{
+			fen.append("/");
+			spaces = 0;
+		}
+
+		switch (piece->GetType())
+		{
+		case KING:
+			fenChar = "k";
+			break;
+		case QUEEN:
+			fenChar = "q";
+			break;
+		case BISHOP:
+			fenChar = "b";
+			break;
+		case KNIGHT:
+			fenChar = "n";
+			break;
+		case ROOK:
+			fenChar = "r";
+			break;
+		case PAWN:
+			fenChar = "p";
+			break;
+		case EN_PASSANT:
+			fenChar = "e";
+			break;
+		}
+
+		if (piece->GetTeam() == WHITE)
+		{
+			for (char c : fenChar)
+			{
+				fenChar = std::string(1, (char)toupper(c));
+				break;
+			}
+		}
+
+		fen.append(fenChar);
+		length++;
+	}
+
+	// printf("Done!\n");
+	// printf("%s\n", fen.c_str());
+
+	return fen;
+}
+
+void Board::RecoverBoardState(std::vector<BoardState> boardStates)
+{
+	for (BoardState boardState : boardStates)
+	{
+		pieces[boardState.tile]->bMoved = boardState.bMoved;
+	}
+}
+
+void Board::CaptureBoardState(std::vector<BoardState>& boardState)
+{
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (pieces[i] == nullptr)
+			continue;
+
+		if (pieces[i]->GetType() == PAWN || pieces[i]->GetType() == ROOK || pieces[i]->GetType() == KING)
+		{
+			BoardState state = BoardState(i, pieces[i]->bMoved);
+			boardState.push_back(state);
+		}
+	}
 }
 
 void Board::EmptyFunction()
@@ -604,27 +832,35 @@ bool Board::MovePiece(int startTile, int endTile)
 
 	if (!IsCurrentTurn(startTile))
 	{
+#if TESTING != 1
 		printf("It is %s's move!\n", currentTurn == WHITE ? "white" : "black");
+#endif
 		return false;
 	}
 
 	if (pieces[endTile] && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
 	{
+#if TESTING != 1
 		printf("Cannot take your own team's piece!\n");
+#endif
 		return false;
 	}
 
 	// check piece specific move
 	if (!CheckLegalMove(startTile, endTile))
 	{
+#if TESTING != 1
 		printf("Not a legal move for this piece!\n");
+#endif
 		return false;
 	}
 
 	// check if move puts self in check by king moving into attacked square
 	if (pieces[startTile]->GetType() == KING && TileInContainer(endTile, pieces[startTile]->GetTeam() == WHITE ? attackSetBlack : attackSetWhite))
 	{
+#if TESTING != 1
 		printf("Cannot put yourself in check!\n");
+#endif
 		return false;
 	}
 
@@ -633,7 +869,9 @@ bool Board::MovePiece(int startTile, int endTile)
 	{
 		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile]->GetType() == KING && KingEscapesCheck(endTile)) && !MoveTakesCheckingPiece(endTile))
 		{
+#if TESTING != 1
 			printf("Move does not escape check!\n");
+#endif
 			return false;
 		}
 	}
@@ -1457,10 +1695,14 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetBlack))
 		{
 			bInCheckWhite = true;
+#if TESTING != 1
 			printf("White in check!\n");
+#endif
 			int moveCount = CalcValidCheckMoves();
 
+#if TESTING != 1
 			printf("%i moves possible!\n", moveCount);
+#endif
 
 			if (moveCount <= 0)
 			{
@@ -1468,14 +1710,19 @@ void Board::CalculateCheck()
 				return;
 			}
 
+#if TESTING != 1
 			soundEngine->play2D("sounds/move-check.mp3");
+#endif
+
 			ClearMoves(WHITE);
 			SetCheckMoves();
 		}
 		else
 		{
 			bInCheckWhite = false;
+#if TESTING != 1
 			PlayMoveSound();
+#endif
 		}
 	}
 	else
@@ -1483,10 +1730,13 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetWhite))
 		{
 			bInCheckBlack = true;
+#if TESTING != 1
 			printf("Black in check!\n");
+#endif
 			int moveCount = CalcValidCheckMoves();
-
+#if TESTING != 1
 			printf("%i moves possible!\n", moveCount);
+#endif
 
 			if (moveCount <= 0)
 			{
@@ -1494,14 +1744,18 @@ void Board::CalculateCheck()
 				return;
 			}
 
+#if TESTING != 1
 			soundEngine->play2D("sounds/move-check.mp3");
+#endif
 			ClearMoves(BLACK);
 			SetCheckMoves();
 		}
 		else
 		{
 			bInCheckBlack = false;
+#if TESTING != 1
 			PlayMoveSound();
+#endif
 		}
 	}
 
@@ -1627,7 +1881,9 @@ bool Board::CanKingEscape(int startTile, int& moveCount)
 		moveCount++;
 	}
 
+#if TESTING != 1
 	printf("Move count after CanKingEscape(): %i\n", moveCount);
+#endif
 	
 	return moveCount > 0;
 }
@@ -1694,7 +1950,9 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 		}
 	}
 
+#if TESTING != 1
 	printf("Move count after CanBlockCheck(): %i\n", moveCount);
+#endif
 
 	return bCanBlockCheck;
 }
@@ -1787,7 +2045,9 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 		}
 	}
 
+#if TESTING != 1
 	printf("Move count after CanTakeCheckingPiece(): %i\n", moveCount);
+#endif
 
 	return bCanTakeCheckingPiece;
 }
@@ -1899,11 +2159,8 @@ void Board::HandlePinnedPieces()
 	}
 }
 
-void Board::SetupGame()
+void Board::SetupGame(bool bTest)
 {
-	lastMoveSound = NONE;
-	bSetPromoSound = false;
-
 	currentTurn = WHITE;
 	lastEnPassantIndex = -1;
 	enPassantOwner = nullptr;
@@ -1918,7 +2175,14 @@ void Board::SetupGame()
 	bGameOver = false;
 	winner = 0;
 
-	ClearButtons();
+	bTesting = bTest;
+
+	if (!bTest)
+	{
+		lastMoveSound = NONE;
+		bSetPromoSound = false;
+		ClearButtons();
+	}
 
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 	FindKings();
@@ -2023,6 +2287,7 @@ void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
 	bGameOver = true;
+#if TESTING != 1
 	soundEngine->stopAllSounds();
 	soundEngine->play2D("sounds/game-end.mp3");
 
@@ -2034,6 +2299,7 @@ void Board::GameOver(int winningTeam)
 	buttons.push_back(continueButton);
 
 	ShowWinnerMessage();
+#endif
 
 	if (winner == NONE)
 	{
@@ -2271,6 +2537,11 @@ void Board::SetupBoardFromFEN(std::string fen)
 					pieces[index] = new Piece(team, PAWN);
 					index++;
 					continue;
+				case 'e':
+					pieces[index] = new Piece(team, EN_PASSANT);
+					lastEnPassantIndex = index;
+					index++;
+					continue;
 			}
 		}
 
@@ -2280,6 +2551,15 @@ void Board::SetupBoardFromFEN(std::string fen)
 			int moveDistance = c - '0';
 			index += moveDistance;
 		}
+	}
+
+	if (InMapRange(lastEnPassantIndex) && pieces[lastEnPassantIndex]->GetTeam() == WHITE)
+	{
+		enPassantOwner = pieces[lastEnPassantIndex + 8];
+	}
+	else
+	{
+		enPassantOwner = pieces[lastEnPassantIndex - 8];
 	}
 }
 

@@ -92,6 +92,25 @@ private:
 	void ContinueCallback();
 	
 	void EmptyFunction();
+	void ShannonTestCallback();
+	int ShannonTest(int ply, const int depth);
+	bool bTesting;
+
+	struct BoardState
+	{
+		BoardState(int tile, bool bMoved)
+		{
+			this->tile = tile;
+			this->bMoved = bMoved;
+		}
+
+		int tile;
+		bool bMoved;
+	};
+
+	std::string BoardToFEN();
+	void CaptureBoardState(std::vector<BoardState>& boardState);
+	void RecoverBoardState(std::vector<BoardState> boardStates);
 
 	Shader boardShader, pieceShader, pickingShader;
 	
@@ -287,7 +306,7 @@ private:
 	bool CheckStalemate();
 	void GameOver(int winningTeam);
 	void ShowWinnerMessage();
-	void SetupGame();
+	void SetupGame(bool bTest);
 
 	bool bGameOver;
 	int winner;
