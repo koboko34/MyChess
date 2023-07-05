@@ -5,13 +5,14 @@
 
 #include "Button.h"
 
-#define TESTING 1
+#define TESTING 0
 
 Board::Board()
 {
 	VAO, EBO, VBO = 0;
 	bInMainMenu = true;
 	bInGame = false;
+	bTesting = false;
 }
 
 Board::~Board()
@@ -592,15 +593,36 @@ void Board::ContinueCallback()
 {
 	bInMainMenu = true;
 	bInGame = false;
-	soundEngine->play2D("sounds/notify.mp3");
 	ShowMenuButtons();
+}
+
+void Board::EmptyFunction()
+{
+	soundEngine->stopAllSounds();
+	return;
+}
+
+void Board::ButtonCallback(int id)
+{
+	for (Button* button : buttons)
+	{
+		if (button->id == id)
+		{
+			soundEngine->play2D("sounds/notify.mp3");
+			button->callback();
+			return;
+		}
+	}
 }
 
 void Board::ShannonTestCallback()
 {
-	const int depth = 3;
+	const int depth = 4;
 	int moveCount;
 	
+	bTesting = true;
+	soundEngine->setSoundVolume(0.f);
+
 	printf("\nStarting test suite at depth %i:\n", depth);
 
 	for (size_t currentDepth = 1; currentDepth <= depth; currentDepth++)
@@ -618,13 +640,18 @@ void Board::ShannonTestCallback()
 	}
 
 	printf("Testing complete!\n");
+
+	bTesting = false;
+	soundEngine->setSoundVolume(1.f);
 }
+
+// ========================================== TESTING ==========================================
 
 int Board::ShannonTest(int ply, const int depth)
 {
 	int moveCount = 0;
 
-	if (ply > depth)
+	if (ply > depth || bGameOver)
 	{
 		return 1;
 	}
@@ -803,23 +830,6 @@ void Board::CaptureBoardState(std::vector<BoardState>& boardState)
 	}
 }
 
-void Board::EmptyFunction()
-{
-	return;
-}
-
-void Board::ButtonCallback(int id)
-{
-	for (Button* button : buttons)
-	{
-		if (button->id == id)
-		{
-			button->callback();
-			return;
-		}
-	}
-}
-
 // ========================================== MOVE LOGIC ==========================================
 
 bool Board::MovePiece(int startTile, int endTile)
@@ -920,7 +930,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	else
 		lastMoveSound = MOVE_SELF;
 
-	if (bChoosingPromotion && bVsComputer && currentTurn == compTeam)
+	if (bChoosingPromotion && ((bVsComputer && currentTurn == compTeam) || bTesting))
 	{
 		Promote(QUEEN);
 	}
@@ -1710,9 +1720,7 @@ void Board::CalculateCheck()
 				return;
 			}
 
-#if TESTING != 1
 			soundEngine->play2D("sounds/move-check.mp3");
-#endif
 
 			ClearMoves(WHITE);
 			SetCheckMoves();
@@ -1720,9 +1728,7 @@ void Board::CalculateCheck()
 		else
 		{
 			bInCheckWhite = false;
-#if TESTING != 1
 			PlayMoveSound();
-#endif
 		}
 	}
 	else
@@ -1744,18 +1750,14 @@ void Board::CalculateCheck()
 				return;
 			}
 
-#if TESTING != 1
 			soundEngine->play2D("sounds/move-check.mp3");
-#endif
 			ClearMoves(BLACK);
 			SetCheckMoves();
 		}
 		else
 		{
 			bInCheckBlack = false;
-#if TESTING != 1
 			PlayMoveSound();
-#endif
 		}
 	}
 
@@ -2287,27 +2289,28 @@ void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
 	bGameOver = true;
-#if TESTING != 1
 	soundEngine->stopAllSounds();
 	soundEngine->play2D("sounds/game-end.mp3");
 
-	ClearButtons();
-	Button* continueButton = new Button(this, (float)width / 8 * 7, 0.038f, 0.2f, (float)width / 8, 0.12f, 0.15f);
-	continueButton->SetCallback(std::bind(&Board::ContinueCallback, this));
-	continueButton->bUseTexture = true;
-	continueButton->SetTexture("textures/buttons/continue.png");
-	buttons.push_back(continueButton);
-
-	ShowWinnerMessage();
-#endif
-
-	if (winner == NONE)
+	if (!bTesting)
 	{
-		printf("Stalemate!\n");
-		return;
-	}
+		ClearButtons();
+		Button* continueButton = new Button(this, (float)width / 8 * 7, 0.038f, 0.2f, (float)width / 8, 0.12f, 0.15f);
+		continueButton->SetCallback(std::bind(&Board::ContinueCallback, this));
+		continueButton->bUseTexture = true;
+		continueButton->SetTexture("textures/buttons/continue.png");
+		buttons.push_back(continueButton);
 
-	printf("%s wins!\n", winner == WHITE ? "White" : "Black");
+		ShowWinnerMessage();
+
+		if (winner == NONE)
+		{
+			printf("Stalemate!\n");
+			return;
+		}
+
+		printf("%s wins!\n", winner == WHITE ? "White" : "Black");
+	}
 }
 
 // ========================================== UTILITY ==========================================
@@ -2555,11 +2558,11 @@ void Board::SetupBoardFromFEN(std::string fen)
 
 	if (InMapRange(lastEnPassantIndex) && pieces[lastEnPassantIndex]->GetTeam() == WHITE)
 	{
-		enPassantOwner = pieces[lastEnPassantIndex + 8];
+		enPassantOwner = pieces[lastEnPassantIndex - 8];
 	}
 	else
 	{
-		enPassantOwner = pieces[lastEnPassantIndex - 8];
+		enPassantOwner = pieces[lastEnPassantIndex + 8];
 	}
 }
 
