@@ -1,11 +1,10 @@
 #include "Board.h"
 
 #include <charconv>
-#include <chrono>
 
 #include "Button.h"
 
-#define TESTING 0
+#include <chrono>
 
 Board::Board()
 {
@@ -524,7 +523,7 @@ void Board::ShowMenuButtons()
 	quitButton->SetTexture("textures/buttons/quit.png");
 	buttons.push_back(quitButton);
 
-#if TESTING == 1
+#ifdef TESTING
 	Button* shannonTestButton = new Button(this, (float)width / 8 * 7, 0.f, 0.8f, (float)width / 8, 0.f, 0.15f);
 	shannonTestButton->SetCallback(std::bind(&Board::ShannonTestCallback, this));
 	buttons.push_back(shannonTestButton);
@@ -615,6 +614,7 @@ void Board::ButtonCallback(int id)
 	}
 }
 
+#ifdef TESTING
 void Board::ShannonTestCallback()
 {
 	const int depth = 4;
@@ -644,9 +644,11 @@ void Board::ShannonTestCallback()
 	bTesting = false;
 	soundEngine->setSoundVolume(1.f);
 }
+#endif
 
 // ========================================== TESTING ==========================================
 
+#ifdef TESTING
 int Board::ShannonTest(int ply, const int depth)
 {
 	int moveCount = 0;
@@ -718,6 +720,7 @@ int Board::ShannonTest(int ply, const int depth)
 
 	return moveCount;
 }
+#endif
 
 std::string Board::BoardToFEN()
 {
@@ -842,7 +845,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 	if (!IsCurrentTurn(startTile))
 	{
-#if TESTING != 1
+#ifdef RELEASE
 		printf("It is %s's move!\n", currentTurn == WHITE ? "white" : "black");
 #endif
 		return false;
@@ -850,7 +853,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 	if (pieces[endTile] && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
 	{
-#if TESTING != 1
+#ifdef RELEASE
 		printf("Cannot take your own team's piece!\n");
 #endif
 		return false;
@@ -859,7 +862,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	// check piece specific move
 	if (!CheckLegalMove(startTile, endTile))
 	{
-#if TESTING != 1
+#ifdef RELEASE
 		printf("Not a legal move for this piece!\n");
 #endif
 		return false;
@@ -868,7 +871,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	// check if move puts self in check by king moving into attacked square
 	if (pieces[startTile]->GetType() == KING && TileInContainer(endTile, pieces[startTile]->GetTeam() == WHITE ? attackSetBlack : attackSetWhite))
 	{
-#if TESTING != 1
+#ifdef RELEASE
 		printf("Cannot put yourself in check!\n");
 #endif
 		return false;
@@ -879,7 +882,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	{
 		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile]->GetType() == KING && KingEscapesCheck(endTile)) && !MoveTakesCheckingPiece(endTile))
 		{
-#if TESTING != 1
+#ifdef RELEASE
 			printf("Move does not escape check!\n");
 #endif
 			return false;
@@ -1705,12 +1708,12 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetBlack))
 		{
 			bInCheckWhite = true;
-#if TESTING != 1
+#ifdef RELEASE
 			printf("White in check!\n");
 #endif
 			int moveCount = CalcValidCheckMoves();
 
-#if TESTING != 1
+#ifdef RELEASE
 			printf("%i moves possible!\n", moveCount);
 #endif
 
@@ -1736,11 +1739,11 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetWhite))
 		{
 			bInCheckBlack = true;
-#if TESTING != 1
+#ifdef RELEASE
 			printf("Black in check!\n");
 #endif
 			int moveCount = CalcValidCheckMoves();
-#if TESTING != 1
+#ifdef RELEASE
 			printf("%i moves possible!\n", moveCount);
 #endif
 
@@ -1883,7 +1886,7 @@ bool Board::CanKingEscape(int startTile, int& moveCount)
 		moveCount++;
 	}
 
-#if TESTING != 1
+#ifdef RELEASE
 	printf("Move count after CanKingEscape(): %i\n", moveCount);
 #endif
 	
@@ -1952,7 +1955,7 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 		}
 	}
 
-#if TESTING != 1
+#ifdef RELEASE
 	printf("Move count after CanBlockCheck(): %i\n", moveCount);
 #endif
 
@@ -2047,7 +2050,7 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 		}
 	}
 
-#if TESTING != 1
+#ifdef RELEASE
 	printf("Move count after CanTakeCheckingPiece(): %i\n", moveCount);
 #endif
 
@@ -2137,11 +2140,11 @@ void Board::HandlePinnedPieces()
 	{
 		for (PinnedPiece* piece : pinnedPiecesWhite)
 		{
-			for (int attack : attackMapWhite[piece->tile])
+			for (int i = attackMapWhite[piece->tile].size() - 1; i >= 0; i--)
 			{
-				if (!TileInContainer(attack, piece->lineOfSight))
+				if (!TileInContainer(attackMapWhite[piece->tile][i], piece->lineOfSight))
 				{
-					attackMapWhite[piece->tile].erase(std::remove(attackMapWhite[piece->tile].begin(), attackMapWhite[piece->tile].end(), attack), attackMapWhite[piece->tile].end());
+					attackMapWhite[piece->tile].erase(std::remove(attackMapWhite[piece->tile].begin(), attackMapWhite[piece->tile].end(), attackMapWhite[piece->tile][i]), attackMapWhite[piece->tile].end());
 				}
 			}
 		}
@@ -2150,11 +2153,11 @@ void Board::HandlePinnedPieces()
 	{
 		for (PinnedPiece* piece : pinnedPiecesBlack)
 		{
-			for (int attack : attackMapBlack[piece->tile])
+			for (int i = attackMapBlack[piece->tile].size() - 1; i >= 0; i--)
 			{
-				if (!TileInContainer(attack, piece->lineOfSight))
+				if (!TileInContainer(attackMapBlack[piece->tile][i], piece->lineOfSight))
 				{
-					attackMapBlack[piece->tile].erase(std::remove(attackMapBlack[piece->tile].begin(), attackMapBlack[piece->tile].end(), attack), attackMapBlack[piece->tile].end());
+					attackMapBlack[piece->tile].erase(std::remove(attackMapBlack[piece->tile].begin(), attackMapBlack[piece->tile].end(), attackMapBlack[piece->tile][i]), attackMapBlack[piece->tile].end());
 				}
 			}
 		}
