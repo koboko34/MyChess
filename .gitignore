@@ -20,6 +20,7 @@ mono_crash.*
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]eleases/
+[Rr]elease/
 x64/
 x86/
 [Aa][Rr][Mm]/
@@ -95,6 +96,7 @@ StyleCopReport.xml
 *.pidb
 *.svclog
 *.scc
+*.recipe
 
 # Chutzpah Test files
 _Chutzpah*

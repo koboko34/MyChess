@@ -4,7 +4,9 @@
 
 #include "Button.h"
 
+#ifdef TESTING
 #include <chrono>
+#endif
 
 Board::Board()
 {

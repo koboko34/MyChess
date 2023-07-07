@@ -38,7 +38,7 @@ void PickingTexture::Init(int width, int height)
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (status != GL_FRAMEBUFFER_COMPLETE)
 	{
-		printf("Framebuffer error: %s\n", status);
+		printf("Framebuffer error: %i\n", status);
 		return;
 	}
 
