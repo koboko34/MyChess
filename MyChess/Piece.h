@@ -15,8 +15,9 @@ public:
 	Piece(PieceTeam team, PieceType type);
 	~Piece();
 
-	PieceTeam GetTeam() { return pieceTeam; }
-	PieceType GetType() { return pieceType; }
+	PieceTeam GetTeam() const { return pieceTeam; }
+	PieceType GetType() const { return pieceType; }
+	int GetValue() const { return pieceValue; }
 
 	void DrawPiece();
 
@@ -25,6 +26,7 @@ public:
 private:
 	PieceTeam pieceTeam;
 	PieceType pieceType;
+	int pieceValue;
 
 	GLuint VAO, EBO, VBO;
 

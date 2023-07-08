@@ -17,7 +17,7 @@
 #include "Shader.h"
 #include "PickingTexture.h"
 
-int WIDTH = 1366; int HEIGHT = 768;
+const int WIDTH = 1366; const int HEIGHT = 768;
 
 Window window;
 Board board;

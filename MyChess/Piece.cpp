@@ -11,6 +11,34 @@ Piece::Piece(PieceTeam team, PieceType type)
 	pieceTeam = team;
 	pieceType = type;
 
+	switch (pieceType)
+	{
+	case KING:
+		pieceValue = KING_VAL;
+		break;
+	case QUEEN:
+		pieceValue = QUEEN_VAL;
+		break;
+	case BISHOP:
+		pieceValue = BISHOP_VAL;
+		break;
+	case KNIGHT:
+		pieceValue = KNIGHT_VAL;
+		break;
+	case ROOK:
+		pieceValue = ROOK_VAL;
+		break;
+	case PAWN:
+		pieceValue = PAWN_VAL;
+		break;
+	case EN_PASSANT:
+		pieceValue = EN_PASSANT_VAL;
+		break;
+	default:
+		pieceValue = 0;
+		break;
+	}
+
 	VAO, EBO, VBO = 0;
 
 	bMoved = false;

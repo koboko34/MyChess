@@ -2196,27 +2196,153 @@ void Board::SetupGame(bool bTest)
 	CalculateMoves();
 }
 
-void Board::PlayCompMove()
+int Board::CalcWhiteValue() const
 {
-	std::random_device rd;
-	std::uniform_int_distribution<int> tiles(0, 63);
-	
-	while (true)
-	{
-		int startTile = tiles(rd);
-		int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
-		if (numOfMoves == 0)
-		{
-			continue;
-		}
+	int teamVal = 0;
 
-		std::uniform_int_distribution<int> moves(0, numOfMoves - 1);
-		int endTile = compTeam == WHITE ? attackMapWhite[startTile][moves(rd)] : attackMapBlack[startTile][moves(rd)];
-		if (MovePiece(startTile, endTile))
+	for (Piece* piece : pieces)
+	{
+		if (piece && piece->GetTeam() == WHITE)
 		{
-			return;
+			teamVal += piece->GetValue();
 		}
 	}
+
+	return teamVal;
+}
+
+int Board::CalcBlackValue() const
+{
+	int teamVal = 0;
+
+	for (Piece* piece : pieces)
+	{
+		if (piece && piece->GetTeam() == BLACK)
+		{
+			teamVal += piece->GetValue();
+		}
+	}
+
+	return teamVal;
+}
+
+int Board::EvaluatePosition(const int ply, const int depth, int& bestStart, int& bestEnd, int& bestValue)
+{
+	if (ply > depth)
+	{
+		int eval = CalcWhiteValue() - CalcBlackValue();
+		int perspective = currentTurn == WHITE ? 1 : -1;
+		
+		eval *= perspective;
+		
+		return eval;
+	}
+
+	// save current board state (locations and whether piece moved for castling etc)
+	std::string fen = BoardToFEN();
+	std::vector<BoardState> boardState;
+	CaptureBoardState(boardState);
+	// capture pinned pieces
+	int lastEnPassant = lastEnPassantIndex;
+	bool bLocalCheckWhite = bInCheckWhite;
+	bool bLocalCheckBlack = bInCheckBlack;
+	PieceTeam turn = currentTurn;
+
+	std::vector<int> attackMap[64];
+	if (turn == WHITE)
+	{
+		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
+	}
+	else
+	{
+		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
+	}
+
+	// for each move
+	for (size_t startTile = 0; startTile < 64; startTile++)
+	{
+		std::vector<int> movesFound;
+
+		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != turn || attackMap[startTile].empty())
+			continue;
+
+		for (int move : attackMap[startTile])
+		{
+			if (TileInContainer(move, movesFound))
+			{
+				printf("MOVE ALREADY IN CONTAINER! FOUND MORE THAN ONCE!\n");
+			}
+			movesFound.push_back(move);
+
+			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
+			turn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
+			for (int tileMove : attackMap[startTile])
+			{
+				turn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
+			}
+
+			// play move
+			MovePiece(startTile, move);
+
+			// calc deeper moves with recursion and add
+			EvaluatePosition(ply + 1, depth, bestStart, bestEnd, bestValue);
+
+			// undo move by restoring board state
+			lastEnPassantIndex = lastEnPassant;
+			SetupBoardFromFEN(fen);
+			RecoverBoardState(boardState);
+			currentTurn = turn;
+			bGameOver = false;
+			bInCheckWhite = bLocalCheckWhite;
+			bInCheckBlack = bLocalCheckWhite;
+		}
+
+		if (movesFound.empty())
+		{
+			if ((currentTurn == WHITE && bInCheckWhite) || (currentTurn == BLACK && bInCheckBlack))
+			{
+				return -999; // nothing is worse than checkmate
+			}
+			else
+			{
+				return 0; // stalemate
+			}
+		}
+	}
+
+	int bestEval = -999;
+
+	// split evaluation and search into two separate functions
+}
+
+void Board::PlayCompMove()
+{
+	int bestStart;
+	int bestEnd;
+	int bestValue = -1;
+
+
+	
+	
+	//std::random_device rd;
+	//std::uniform_int_distribution<int> tiles(0, 63);
+	//
+	//while (true)
+	//{
+	//	int startTile = tiles(rd);
+	//	int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
+	//	if (numOfMoves == 0)
+	//	{
+	//		continue;
+	//	}
+
+	//	std::uniform_int_distribution<int> moves(0, numOfMoves - 1);
+	//	int endTile = compTeam == WHITE ? attackMapWhite[startTile][moves(rd)] : attackMapBlack[startTile][moves(rd)];
+	//	if (MovePiece(startTile, endTile))
+	//	{
+	//		return;
+	//	}
+	//}
 }
 
 bool Board::CheckStalemate()

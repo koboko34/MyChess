@@ -14,6 +14,17 @@ enum PieceType
 	EN_PASSANT = 6
 };
 
+enum PieceValue
+{
+	KING_VAL = 0,
+	QUEEN_VAL = 9,
+	BISHOP_VAL = 3,
+	KNIGHT_VAL = 3,
+	ROOK_VAL = 5,
+	PAWN_VAL = 1,
+	EN_PASSANT_VAL = 1
+};
+
 enum PieceTeam
 {
 	NONE = 0,

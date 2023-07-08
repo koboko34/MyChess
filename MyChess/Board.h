@@ -314,6 +314,9 @@ private:
 	bool bVsComputer = false;
 	PieceTeam compTeam = BLACK;
 
+	int CalcWhiteValue() const;
+	int CalcBlackValue() const;
+	int EvaluatePosition(const int ply, const int depth, int& bestStart, int& bestEnd, int& bestValue);
 	void PlayCompMove();
 
 };
