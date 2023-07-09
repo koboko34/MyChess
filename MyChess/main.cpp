@@ -82,7 +82,7 @@ int main()
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
-	soundEngine->setSoundVolume(1.f);
+	soundEngine->setSoundVolume(0.f);
 
 	board.Init(WIDTH, HEIGHT, window.GetWindow(), soundEngine);
 

@@ -1,5 +1,6 @@
 #include "Board.h"
 
+#include <memory>
 #include <charconv>
 
 #include "Button.h"
@@ -498,6 +499,8 @@ void Board::RenderContinueButton()
 
 void Board::ShowMenuButtons()
 {
+	soundEngine->setSoundVolume(1.f);
+	
 	ClearButtons();
 
 	Button* title = new Button(this, (float)width / 4 * 2, 0.f, 0.8f, (float)width / 2, 0.f, 0.4f);
@@ -619,7 +622,7 @@ void Board::ButtonCallback(int id)
 #ifdef TESTING
 void Board::ShannonTestCallback()
 {
-	const int depth = 4;
+	const int depth = 3;
 	int moveCount;
 	
 	bTesting = true;
@@ -661,17 +664,10 @@ int Board::ShannonTest(int ply, const int depth)
 	}
 
 	// save current board state (locations and whether piece moved for castling etc)
-	std::string fen = BoardToFEN();
-	std::vector<BoardState> boardState;
-	CaptureBoardState(boardState);
-	// capture pinned pieces
-	int lastEnPassant = lastEnPassantIndex;
-	bool bLocalCheckWhite = bInCheckWhite;
-	bool bLocalCheckBlack = bInCheckBlack;
-	PieceTeam turn = currentTurn;
+	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
 
 	std::vector<int> attackMap[64];
-	if (turn == WHITE)
+	if (currentTurn == WHITE)
 	{
 		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
 	}
@@ -685,7 +681,7 @@ int Board::ShannonTest(int ply, const int depth)
 	{
 		std::vector<int> movesFound;
 		
-		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != turn || attackMap[startTile].empty())
+		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != currentTurn || attackMap[startTile].empty())
 			continue;
 
 		for (int move : attackMap[startTile])
@@ -697,10 +693,10 @@ int Board::ShannonTest(int ply, const int depth)
 			movesFound.push_back(move);
 			
 			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
-			turn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
+			currentTurn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
 			for (int tileMove : attackMap[startTile])
 			{
-				turn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
+				currentTurn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
 			}
 
 			// play move
@@ -710,13 +706,7 @@ int Board::ShannonTest(int ply, const int depth)
 			moveCount += ShannonTest(ply + 1, depth);
 
 			// undo move by restoring board state
-			lastEnPassantIndex = lastEnPassant;
-			SetupBoardFromFEN(fen);
-			RecoverBoardState(boardState);
-			currentTurn = turn;
-			bGameOver = false;
-			bInCheckWhite = bLocalCheckWhite;
-			bInCheckBlack = bLocalCheckWhite;
+			RecoverBoardState(boardState.get());
 		}
 	}
 
@@ -812,15 +802,15 @@ std::string Board::BoardToFEN()
 	return fen;
 }
 
-void Board::RecoverBoardState(std::vector<BoardState> boardStates)
+void Board::RecoverPieceMovedState(const std::vector<PieceMovedState> pieceMovedStates)
 {
-	for (BoardState boardState : boardStates)
+	for (PieceMovedState boardState : pieceMovedStates)
 	{
 		pieces[boardState.tile]->bMoved = boardState.bMoved;
 	}
 }
 
-void Board::CaptureBoardState(std::vector<BoardState>& boardState)
+void Board::CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState)
 {
 	for (size_t i = 0; i < 64; i++)
 	{
@@ -829,10 +819,23 @@ void Board::CaptureBoardState(std::vector<BoardState>& boardState)
 
 		if (pieces[i]->GetType() == PAWN || pieces[i]->GetType() == ROOK || pieces[i]->GetType() == KING)
 		{
-			BoardState state = BoardState(i, pieces[i]->bMoved);
-			boardState.push_back(state);
+			PieceMovedState state = PieceMovedState(i, pieces[i]->bMoved);
+			pieceMovedState.push_back(state);
 		}
 	}
+}
+
+void Board::RecoverBoardState(BoardState* boardState)
+{
+	lastEnPassantIndex = boardState->lastEnPassant;
+	SetupBoardFromFEN(boardState->fen);
+	RecoverPieceMovedState(boardState->pieceMovedStates);
+	currentTurn = boardState->turn;
+	bGameOver = false;
+	bInCheckWhite = boardState->bLocalCheckWhite;
+	bInCheckBlack = boardState->bLocalCheckBlack;
+	lastMoveStart = boardState->lastMoveStart;
+	lastMoveEnd = boardState->lastMoveEnd;
 }
 
 // ========================================== MOVE LOGIC ==========================================
@@ -1607,6 +1610,12 @@ void Board::CalculateMoves()
 	HandlePinnedPieces();
 	CalculateCastling();
 	CalculateCheck();
+
+	if (!bSearching && false) // fix eval function before removing the 'false'
+	{
+		int eval = CalcEval(1);
+		printf("Eval: %i\n", eval);
+	}
 }
 
 void Board::CalculateAttacks()
@@ -2226,30 +2235,30 @@ int Board::CalcBlackValue() const
 	return teamVal;
 }
 
-int Board::EvaluatePosition(const int ply, const int depth, int& bestStart, int& bestEnd, int& bestValue)
+int Board::EvaluatePosition()
 {
+	int eval = CalcWhiteValue() - CalcBlackValue();
+	int perspective = currentTurn == WHITE ? 1 : -1;
+
+	return eval * perspective;
+}
+
+int Board::Search(const int ply, const int depth)
+{
+	int eval;
+	
 	if (ply > depth)
 	{
-		int eval = CalcWhiteValue() - CalcBlackValue();
-		int perspective = currentTurn == WHITE ? 1 : -1;
-		
-		eval *= perspective;
-		
-		return eval;
+		return eval = EvaluatePosition();
 	}
 
-	// save current board state (locations and whether piece moved for castling etc)
-	std::string fen = BoardToFEN();
-	std::vector<BoardState> boardState;
-	CaptureBoardState(boardState);
-	// capture pinned pieces
-	int lastEnPassant = lastEnPassantIndex;
-	bool bLocalCheckWhite = bInCheckWhite;
-	bool bLocalCheckBlack = bInCheckBlack;
-	PieceTeam turn = currentTurn;
+	int bestEval = -999;
+
+	// save current board state (locations, whether piece moved for castling etc)
+	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
 
 	std::vector<int> attackMap[64];
-	if (turn == WHITE)
+	if (currentTurn == WHITE)
 	{
 		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
 	}
@@ -2263,38 +2272,35 @@ int Board::EvaluatePosition(const int ply, const int depth, int& bestStart, int&
 	{
 		std::vector<int> movesFound;
 
-		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != turn || attackMap[startTile].empty())
+		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != currentTurn || attackMap[startTile].empty())
 			continue;
 
 		for (int move : attackMap[startTile])
 		{
+#ifdef TESTING
 			if (TileInContainer(move, movesFound))
 			{
 				printf("MOVE ALREADY IN CONTAINER! FOUND MORE THAN ONCE!\n");
 			}
+#endif
 			movesFound.push_back(move);
 
 			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
-			turn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
+			currentTurn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
 			for (int tileMove : attackMap[startTile])
 			{
-				turn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
+				currentTurn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
 			}
 
 			// play move
 			MovePiece(startTile, move);
 
 			// calc deeper moves with recursion and add
-			EvaluatePosition(ply + 1, depth, bestStart, bestEnd, bestValue);
+			eval = -Search(ply + 1, depth);
+			bestEval = eval > bestEval ? eval : bestEval;
 
 			// undo move by restoring board state
-			lastEnPassantIndex = lastEnPassant;
-			SetupBoardFromFEN(fen);
-			RecoverBoardState(boardState);
-			currentTurn = turn;
-			bGameOver = false;
-			bInCheckWhite = bLocalCheckWhite;
-			bInCheckBlack = bLocalCheckWhite;
+			RecoverBoardState(boardState.get());
 		}
 
 		if (movesFound.empty())
@@ -2310,39 +2316,39 @@ int Board::EvaluatePosition(const int ply, const int depth, int& bestStart, int&
 		}
 	}
 
-	int bestEval = -999;
+	return bestEval;
 
-	// split evaluation and search into two separate functions
+}
+
+int Board::CalcEval(const int depth)
+{
+	bSearching = true;
+	int eval = Search(1, depth);
+	bSearching = false;
+	return eval;
 }
 
 void Board::PlayCompMove()
 {
-	int bestStart;
-	int bestEnd;
-	int bestValue = -1;
-
-
+	std::random_device rd;
+	std::uniform_int_distribution<int> tiles(0, 63);
 	
-	
-	//std::random_device rd;
-	//std::uniform_int_distribution<int> tiles(0, 63);
-	//
-	//while (true)
-	//{
-	//	int startTile = tiles(rd);
-	//	int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
-	//	if (numOfMoves == 0)
-	//	{
-	//		continue;
-	//	}
+	while (true)
+	{
+		int startTile = tiles(rd);
+		int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
+		if (numOfMoves == 0)
+		{
+			continue;
+		}
 
-	//	std::uniform_int_distribution<int> moves(0, numOfMoves - 1);
-	//	int endTile = compTeam == WHITE ? attackMapWhite[startTile][moves(rd)] : attackMapBlack[startTile][moves(rd)];
-	//	if (MovePiece(startTile, endTile))
-	//	{
-	//		return;
-	//	}
-	//}
+		std::uniform_int_distribution<int> moves(0, numOfMoves - 1);
+		int endTile = compTeam == WHITE ? attackMapWhite[startTile][moves(rd)] : attackMapBlack[startTile][moves(rd)];
+		if (MovePiece(startTile, endTile))
+		{
+			return;
+		}
+	}
 }
 
 bool Board::CheckStalemate()

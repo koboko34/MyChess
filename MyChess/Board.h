@@ -96,9 +96,9 @@ private:
 	int ShannonTest(int ply, const int depth);
 	bool bTesting;
 
-	struct BoardState
+	struct PieceMovedState
 	{
-		BoardState(int tile, bool bMoved)
+		PieceMovedState(int tile, bool bMoved)
 		{
 			this->tile = tile;
 			this->bMoved = bMoved;
@@ -109,8 +109,43 @@ private:
 	};
 
 	std::string BoardToFEN();
-	void CaptureBoardState(std::vector<BoardState>& boardState);
-	void RecoverBoardState(std::vector<BoardState> boardStates);
+	void CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState);
+	void RecoverPieceMovedState(const std::vector<PieceMovedState> pieceMovedStates);
+
+	struct BoardState
+	{
+		BoardState(Board* board)
+		{
+			this->board = board;
+
+			lastEnPassant = board->lastEnPassantIndex;
+			fen = board->BoardToFEN();
+			board->CapturePieceMovedState(pieceMovedStates);
+			turn = board->currentTurn;
+			bLocalCheckWhite = board->bInCheckWhite;
+			bLocalCheckBlack = board->bInCheckBlack;
+			this->lastMoveStart = board->lastMoveStart;
+			this->lastMoveEnd = board->lastMoveEnd;
+		}
+
+		~BoardState()
+		{
+
+		}
+		
+		Board* board;
+
+		int lastEnPassant;
+		std::string fen;
+		std::vector<PieceMovedState> pieceMovedStates;
+		PieceTeam turn;
+		bool bLocalCheckWhite;
+		bool bLocalCheckBlack;
+		int lastMoveStart;
+		int lastMoveEnd;
+	};
+
+	void RecoverBoardState(BoardState* boardState);
 
 	Shader boardShader, pieceShader, pickingShader;
 	
@@ -314,9 +349,13 @@ private:
 	bool bVsComputer = false;
 	PieceTeam compTeam = BLACK;
 
+	bool bSearching = false;
+
 	int CalcWhiteValue() const;
 	int CalcBlackValue() const;
-	int EvaluatePosition(const int ply, const int depth, int& bestStart, int& bestEnd, int& bestValue);
+	int EvaluatePosition();
+	int Search(const int ply, const int depth);
+	int CalcEval(const int depth);
 	void PlayCompMove();
 
 };
