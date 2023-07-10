@@ -118,9 +118,9 @@ private:
 		{
 			this->board = board;
 
-			lastEnPassant = board->lastEnPassantIndex;
 			fen = board->BoardToFEN();
 			board->CapturePieceMovedState(pieceMovedStates);
+			this->kingXRay = board->kingXRay;
 			turn = board->currentTurn;
 			bLocalCheckWhite = board->bInCheckWhite;
 			bLocalCheckBlack = board->bInCheckBlack;
@@ -135,9 +135,9 @@ private:
 		
 		Board* board;
 
-		int lastEnPassant;
 		std::string fen;
 		std::vector<PieceMovedState> pieceMovedStates;
+		std::set<int> kingXRay;
 		PieceTeam turn;
 		bool bLocalCheckWhite;
 		bool bLocalCheckBlack;
@@ -297,7 +297,6 @@ private:
 	bool bInCheckBlack;
 	void CalculateCheck();
 	void ClearMoves(int team);
-	void SetCheckMoves();
 
 	struct CheckingPiece
 	{
@@ -333,8 +332,8 @@ private:
 	void AddCheckingPiece(int startTile, const std::vector<int>& checkLOS);
 	void AddProtectedPieceToSet(int target);
 
-	std::vector<CheckingPiece*> checkingPiecesWhite;
-	std::vector<CheckingPiece*> checkingPiecesBlack;
+	std::vector<CheckingPiece> checkingPiecesWhite;
+	std::vector<CheckingPiece> checkingPiecesBlack;
 
 	void ClearCheckingPieces();
 

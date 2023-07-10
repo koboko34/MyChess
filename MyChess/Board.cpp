@@ -622,7 +622,7 @@ void Board::ButtonCallback(int id)
 #ifdef TESTING
 void Board::ShannonTestCallback()
 {
-	const int depth = 3;
+	const int depth = 4;
 	int moveCount;
 	
 	bTesting = true;
@@ -723,8 +723,6 @@ std::string Board::BoardToFEN()
 
 	for (Piece* piece : pieces)
 	{
-		// printf("%s\n", fen.c_str());
-		
 		if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
 		{
 			fen.append("/");
@@ -796,9 +794,6 @@ std::string Board::BoardToFEN()
 		length++;
 	}
 
-	// printf("Done!\n");
-	// printf("%s\n", fen.c_str());
-
 	return fen;
 }
 
@@ -827,9 +822,9 @@ void Board::CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState
 
 void Board::RecoverBoardState(BoardState* boardState)
 {
-	lastEnPassantIndex = boardState->lastEnPassant;
 	SetupBoardFromFEN(boardState->fen);
 	RecoverPieceMovedState(boardState->pieceMovedStates);
+	ClearPinnedPieces();
 	currentTurn = boardState->turn;
 	bGameOver = false;
 	bInCheckWhite = boardState->bLocalCheckWhite;
@@ -856,19 +851,19 @@ bool Board::MovePiece(int startTile, int endTile)
 		return false;
 	}
 
-	if (pieces[endTile] && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
-	{
-#ifdef RELEASE
-		printf("Cannot take your own team's piece!\n");
-#endif
-		return false;
-	}
-
 	// check piece specific move
 	if (!CheckLegalMove(startTile, endTile))
 	{
 #ifdef RELEASE
 		printf("Not a legal move for this piece!\n");
+#endif
+		return false;
+	}
+
+	if (pieces[endTile] && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
+	{
+#ifdef RELEASE
+		printf("Cannot take your own team's piece!\n");
 #endif
 		return false;
 	}
@@ -896,7 +891,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 
 	// checks complete
-	bool tookPiece = pieces[endTile] && pieces[endTile]->GetTeam() != currentTurn;
+	bool tookPiece = pieces[endTile] && pieces[endTile]->GetTeam() != currentTurn && pieces[endTile]->GetType() != EN_PASSANT;
 
 	lastMoveStart = startTile;
 	lastMoveEnd = endTile;
@@ -938,7 +933,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	else
 		lastMoveSound = MOVE_SELF;
 
-	if (bChoosingPromotion && ((bVsComputer && currentTurn == compTeam) || bTesting))
+	if (bChoosingPromotion && ((bVsComputer && currentTurn == compTeam) || bTesting || bSearching))
 	{
 		Promote(QUEEN);
 	}
@@ -1225,7 +1220,6 @@ void Board::CalcBishopMoves(int startTile)
 	HandleFoundMoves(startTile, foundKing, checkLOS, attackingTiles);
 	
 	AddToMap(startTile, attackingTiles);
-	
 }
 
 void Board::CalcKnightMoves(int startTile)
@@ -1571,6 +1565,7 @@ void Board::CalculateMoves()
 	attackSetBlack.clear();
 	ClearCheckingPieces();
 	kingXRay.clear();
+	FindKings();
 
 	for (size_t i = 0; i < 64; i++)
 	{
@@ -1586,7 +1581,6 @@ void Board::CalculateMoves()
 		{
 		case KING:
 			CalcKingMoves(i);
-			SetKingPos(i);
 			break;
 		case QUEEN:
 			CalcQueenMoves(i);
@@ -1611,10 +1605,11 @@ void Board::CalculateMoves()
 	CalculateCastling();
 	CalculateCheck();
 
-	if (!bSearching && false) // fix eval function before removing the 'false'
+	if (!bSearching && !bTesting)
 	{
-		int eval = CalcEval(1);
-		printf("Eval: %i\n", eval);
+		int eval = CalcEval(2);
+		eval *= currentTurn == WHITE ? 1 : -1;
+		printf("Eval: %i %s\n", eval, currentTurn == WHITE ? "WHITE" : "BLACK");
 	}
 }
 
@@ -1719,13 +1714,19 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetBlack))
 		{
 			bInCheckWhite = true;
-#ifdef RELEASE
-			printf("White in check!\n");
+#ifdef TESTING
+			if (!bTesting && !bSearching)
+			{
+				printf("White in check!\n");
+			}
 #endif
 			int moveCount = CalcValidCheckMoves();
 
-#ifdef RELEASE
-			printf("%i moves possible!\n", moveCount);
+#ifdef TESTING
+			if (!bTesting && !bSearching)
+			{
+				printf("%i moves possible!\n", moveCount);
+			}
 #endif
 
 			if (moveCount <= 0)
@@ -1735,9 +1736,6 @@ void Board::CalculateCheck()
 			}
 
 			soundEngine->play2D("sounds/move-check.mp3");
-
-			ClearMoves(WHITE);
-			SetCheckMoves();
 		}
 		else
 		{
@@ -1750,12 +1748,19 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetWhite))
 		{
 			bInCheckBlack = true;
-#ifdef RELEASE
-			printf("Black in check!\n");
+#ifdef TESTING
+			if (!bTesting && !bSearching)
+			{
+				printf("Black in check!\n");
+			}
 #endif
 			int moveCount = CalcValidCheckMoves();
-#ifdef RELEASE
-			printf("%i moves possible!\n", moveCount);
+
+#ifdef TESTING
+			if (!bTesting && !bSearching)
+			{
+				printf("%i moves possible!\n", moveCount);
+			}
 #endif
 
 			if (moveCount <= 0)
@@ -1765,8 +1770,6 @@ void Board::CalculateCheck()
 			}
 
 			soundEngine->play2D("sounds/move-check.mp3");
-			ClearMoves(BLACK);
-			SetCheckMoves();
 		}
 		else
 		{
@@ -1796,20 +1799,6 @@ void Board::ClearMoves(int team)
 		{
 			attacks.clear();
 		}
-	}
-}
-
-void Board::SetCheckMoves()
-{
-	if (currentTurn == WHITE)
-	{
-		ClearMoves(WHITE);
-		std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
-	}
-	else
-	{
-		ClearMoves(BLACK);
-		std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
 	}
 }
 
@@ -1897,8 +1886,11 @@ bool Board::CanKingEscape(int startTile, int& moveCount)
 		moveCount++;
 	}
 
-#ifdef RELEASE
-	printf("Move count after CanKingEscape(): %i\n", moveCount);
+#ifdef TESTING
+	if (!bTesting && !bSearching)
+	{
+		printf("Move count after CanKingEscape(): %i\n", moveCount);
+	}
 #endif
 	
 	return moveCount > 0;
@@ -1910,7 +1902,7 @@ bool Board::MoveBlocksCheck(int startTile, int endTile)
 
 	if (size == 1)
 	{
-		return pieces[startTile]->GetType() != KING && TileInContainer(endTile, currentTurn == WHITE ? checkingPiecesBlack[0]->lineOfSight : checkingPiecesWhite[0]->lineOfSight);
+		return pieces[startTile]->GetType() != KING && TileInContainer(endTile, currentTurn == WHITE ? checkingPiecesBlack[0].lineOfSight : checkingPiecesWhite[0].lineOfSight);
 	}
 	return false;
 }
@@ -1922,16 +1914,16 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 	std::set<int> checkingTiles;
 	if (currentTurn == WHITE)
 	{
-		for (CheckingPiece* piece : checkingPiecesBlack)
+		for (CheckingPiece piece : checkingPiecesBlack)
 		{
-			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
+			std::copy(piece.lineOfSight.begin(), piece.lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
 		}
 	}
 	else
 	{
-		for (CheckingPiece* piece : checkingPiecesWhite)
+		for (CheckingPiece piece : checkingPiecesWhite)
 		{
-			std::copy(piece->lineOfSight.begin(), piece->lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
+			std::copy(piece.lineOfSight.begin(), piece.lineOfSight.end(), std::inserter(checkingTiles, checkingTiles.end()));
 		}
 	}
 
@@ -1966,8 +1958,11 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 		}
 	}
 
-#ifdef RELEASE
-	printf("Move count after CanBlockCheck(): %i\n", moveCount);
+#ifdef TESTING
+	if (!bTesting && !bSearching)
+	{
+		printf("Move count after CanBlockCheck(): %i\n", moveCount);
+	}
 #endif
 
 	return bCanBlockCheck;
@@ -1975,9 +1970,9 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 
 bool Board::MoveTakesCheckingPiece(int endTile)
 {
-	auto checkingPieces = currentTurn == WHITE ? checkingPiecesBlack : checkingPiecesWhite;
+	auto const checkingPieces = currentTurn == WHITE ? checkingPiecesBlack : checkingPiecesWhite;
 	
-	if (checkingPieces.size() == 1 && endTile == checkingPieces[0]->tile)
+	if (checkingPieces.size() == 1 && endTile == checkingPieces[0].tile)
 	{
 		return true;
 	}
@@ -1986,11 +1981,20 @@ bool Board::MoveTakesCheckingPiece(int endTile)
 
 void Board::AddCheckingPiece(int startTile, const std::vector<int>& checkLOS)
 {
-	CheckingPiece* checkingPiece = new CheckingPiece();
-	checkingPiece->tile = startTile;
-	checkingPiece->pieceType = pieces[startTile]->GetType();
-	checkingPiece->lineOfSight = checkLOS;
-	pieces[startTile]->GetTeam() == WHITE ? checkingPiecesWhite.push_back(checkingPiece) : checkingPiecesBlack.push_back(checkingPiece);
+	if (pieces[startTile]->GetTeam() == WHITE)
+	{
+		checkingPiecesWhite.emplace(checkingPiecesWhite.begin());
+		checkingPiecesWhite[0].tile = startTile;
+		checkingPiecesWhite[0].pieceType = pieces[startTile]->GetType();
+		checkingPiecesWhite[0].lineOfSight = checkLOS;
+	}
+	else
+	{
+		checkingPiecesBlack.emplace(checkingPiecesBlack.begin());
+		checkingPiecesBlack[0].tile = startTile;
+		checkingPiecesBlack[0].pieceType = pieces[startTile]->GetType();
+		checkingPiecesBlack[0].lineOfSight = checkLOS;
+	}
 }
 
 void Board::AddProtectedPieceToSet(int target)
@@ -2007,17 +2011,8 @@ void Board::AddProtectedPieceToSet(int target)
 
 void Board::ClearCheckingPieces()
 {
-	while (checkingPiecesWhite.size() != 0)
-	{
-		delete checkingPiecesWhite[0];
-		checkingPiecesWhite.erase(checkingPiecesWhite.begin());
-	}
-	
-	while (checkingPiecesBlack.size() != 0)
-	{
-		delete checkingPiecesBlack[0];
-		checkingPiecesBlack.erase(checkingPiecesBlack.begin());
-	}
+	checkingPiecesWhite.clear();
+	checkingPiecesBlack.clear();
 }
 
 bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
@@ -2028,11 +2023,11 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 	int checkPiecePos = -1;
 	if (currentTurn == WHITE && checkingPiecesBlack.size() > 0)
 	{
-		checkPiecePos = checkingPiecesBlack[0]->tile;
+		checkPiecePos = checkingPiecesBlack[0].tile;
 	}
 	else if (currentTurn == BLACK && checkingPiecesWhite.size() > 0)
 	{
-		checkPiecePos = checkingPiecesWhite[0]->tile;
+		checkPiecePos = checkingPiecesWhite[0].tile;
 	}
 
 	// find moves where own piece attacks the checking piece
@@ -2061,8 +2056,11 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 		}
 	}
 
-#ifdef RELEASE
-	printf("Move count after CanTakeCheckingPiece(): %i\n", moveCount);
+#ifdef TESTING
+	if (!bTesting && !bSearching)
+	{
+		printf("Move count after CanTakeCheckingPiece(): %i\n", moveCount);
+	}
 #endif
 
 	return bCanTakeCheckingPiece;
@@ -2088,7 +2086,6 @@ int Board::CalcValidCheckMoves()
 		CanTakeCheckingPiece(kingPos, moveCount);
 	}
 
-	// copy validCheckMoves into attackMap
 	if (moveCount > 0)
 	{
 		if (currentTurn == WHITE)
@@ -2211,7 +2208,7 @@ int Board::CalcWhiteValue() const
 
 	for (Piece* piece : pieces)
 	{
-		if (piece && piece->GetTeam() == WHITE)
+		if (piece && piece->GetTeam() == WHITE && piece->GetType() != EN_PASSANT)
 		{
 			teamVal += piece->GetValue();
 		}
@@ -2226,7 +2223,7 @@ int Board::CalcBlackValue() const
 
 	for (Piece* piece : pieces)
 	{
-		if (piece && piece->GetTeam() == BLACK)
+		if (piece && piece->GetTeam() == BLACK && piece->GetType() != EN_PASSANT)
 		{
 			teamVal += piece->GetValue();
 		}
@@ -2267,6 +2264,8 @@ int Board::Search(const int ply, const int depth)
 		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
 	}
 
+	std::vector<CheckingPiece> checkingPieces = currentTurn == WHITE ? checkingPiecesBlack : checkingPiecesWhite;
+
 	// for each move
 	for (size_t startTile = 0; startTile < 64; startTile++)
 	{
@@ -2301,6 +2300,24 @@ int Board::Search(const int ply, const int depth)
 
 			// undo move by restoring board state
 			RecoverBoardState(boardState.get());
+			if (currentTurn == WHITE)
+			{
+				checkingPiecesBlack = checkingPieces;
+			}
+			else
+			{
+				checkingPiecesWhite = checkingPieces;
+			}
+		}
+
+		// restore attackMap, recovering from cache rather than calculating again
+		if (currentTurn == WHITE)
+		{
+			std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapWhite));
+		}
+		else
+		{
+			std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapBlack));
 		}
 
 		if (movesFound.empty())
@@ -2317,7 +2334,6 @@ int Board::Search(const int ply, const int depth)
 	}
 
 	return bestEval;
-
 }
 
 int Board::CalcEval(const int depth)
@@ -2429,7 +2445,7 @@ void Board::GameOver(int winningTeam)
 	soundEngine->stopAllSounds();
 	soundEngine->play2D("sounds/game-end.mp3");
 
-	if (!bTesting)
+	if (!bTesting && !bSearching)
 	{
 		ClearButtons();
 		Button* continueButton = new Button(this, (float)width / 8 * 7, 0.038f, 0.2f, (float)width / 8, 0.12f, 0.15f);
@@ -2701,6 +2717,7 @@ void Board::SetupBoardFromFEN(std::string fen)
 	{
 		enPassantOwner = pieces[lastEnPassantIndex + 8];
 	}
+	lastEnPassantIndex = -1;
 }
 
 bool Board::ShouldHighlightSelectedObject(int selectedObjectId, int objectId)
