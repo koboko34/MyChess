@@ -1628,7 +1628,7 @@ void Board::CalculateMoves()
 
 	if (!bSearching && !bTesting && !bGameOver && false)
 	{
-		int eval = CalcEval(2);
+		int eval = CalcEval(DEPTH);
 		eval *= currentTurn == WHITE ? 1 : -1;
 		printf("%i vs. %i\n", CalcWhiteValue(), CalcBlackValue());
 		printf("Eval: %i %s\n", eval, currentTurn == WHITE ? "WHITE" : "BLACK");
@@ -2229,6 +2229,8 @@ void Board::SetupGame(bool bTest)
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 	FindKings();
 	CalculateMoves();
+
+	CalcEval(DEPTH);
 }
 
 int Board::CalcWhiteValue() const
@@ -2280,6 +2282,8 @@ int Board::Search(const int ply, const int depth)
 
 	int bestEval = -999;
 
+	std::vector<Move> bestMoves;
+
 	// save current board state (locations, whether piece moved for castling etc)
 	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
 
@@ -2326,11 +2330,15 @@ int Board::Search(const int ply, const int depth)
 			// calc deeper moves with recursion and add
 			eval = -Search(ply + 1, depth);
 
-			if (eval >= bestEval && ply == 1)
+			if (eval > bestEval && ply == 1)
 			{
 				bestEval = eval;
-				bestMoveStart = startTile;
-				bestMoveEnd = move;
+				bestMoves.clear();
+				bestMoves.emplace(bestMoves.end(), startTile, move);
+			}
+			else if (eval == bestEval && ply == 1)
+			{
+				bestMoves.emplace(bestMoves.end(), startTile, move);
 			}
 			else if (eval >= bestEval)
 			{
@@ -2370,6 +2378,11 @@ int Board::Search(const int ply, const int depth)
 				return 0; // stalemate
 			}
 		}
+	}
+
+	if (ply == 1)
+	{
+		SetBestMoves(bestMoves);
 	}
 
 	return bestEval;
@@ -2544,6 +2557,23 @@ void Board::SetKingPos(int target)
 	{
 		kingPosBlack = target;
 	}
+}
+
+void Board::SetBestMoves(const std::vector<Move>& bestMoves)
+{
+	if (bestMoves.size() == 1)
+	{
+		bestMoveStart = bestMoves[0].startTile;
+		bestMoveEnd = bestMoves[0].endTile;
+		return;
+	}
+	
+	std::random_device rd;
+	std::uniform_int_distribution<int> moveList(0, bestMoves.size());
+
+	int move = moveList(rd);
+	bestMoveStart = bestMoves[move].startTile;
+	bestMoveEnd = bestMoves[move].endTile;
 }
 
 void Board::PlayMoveSound()

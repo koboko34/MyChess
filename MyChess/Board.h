@@ -248,6 +248,20 @@ private:
 	void CalcRookMoves(int startTile);
 	void CalcPawnMoves(int startTile);
 
+	struct Move
+	{
+		Move(int start, int end)
+		{
+			startTile = start;
+			endTile = end;
+		}
+		
+		int startTile;
+		int endTile;
+	};
+
+	void SetBestMoves(const std::vector<Move>& bestMoves);
+
 	int lastMoveStart;
 	int lastMoveEnd;
 	int secondLastMoveStart;
@@ -367,6 +381,7 @@ private:
 	int EvaluatePosition();
 	int Search(const int ply, const int depth);
 	int CalcEval(const int depth);
+	const int DEPTH = 2;
 
 };
 
