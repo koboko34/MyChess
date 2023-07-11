@@ -59,7 +59,7 @@ private:
 	void SetupPieces(glm::mat4 view, glm::mat4 projection);
 	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
 	void SetupPromotionPieces();
-	void SetupBoardFromFEN(std::string fen);
+	void SetupBoardFromFEN(const std::string fen);
 	void SetupFont();
 
 	bool ShouldHighlightSelectedObject(int selectedObjectId, int objectId);
@@ -250,6 +250,10 @@ private:
 
 	int lastMoveStart;
 	int lastMoveEnd;
+	int secondLastMoveStart;
+	int secondLastMoveEnd;
+
+	int repeatedMoveCount;
 
 	bool BlockedByOwnPiece(int startTile, int target) const;
 	bool BlockedByEnemyPiece(int startTile, int target) const;
@@ -347,15 +351,22 @@ private:
 
 	bool bVsComputer = false;
 	PieceTeam compTeam = BLACK;
+	void PlayCompMove();
+	void PlayCompMoveRandom();
+
+	std::string boardCoords[64];
+	void SetBoardCoords();
 
 	bool bSearching = false;
+	int bestMoveStart;
+	int bestMoveEnd;
+	std::string ToBoard(const int tile) const;
 
 	int CalcWhiteValue() const;
 	int CalcBlackValue() const;
 	int EvaluatePosition();
 	int Search(const int ply, const int depth);
 	int CalcEval(const int depth);
-	void PlayCompMove();
 
 };
 

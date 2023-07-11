@@ -15,6 +15,9 @@ Board::Board()
 	bInMainMenu = true;
 	bInGame = false;
 	bTesting = false;
+
+	bestMoveStart = -1;
+	bestMoveEnd = -1;
 }
 
 Board::~Board()
@@ -73,6 +76,7 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 	SetupPickingShader(view, projection);
 	SetupPromotionPieces();
 
+	SetBoardCoords();
 	PrepEdges();
 	CalculateEdges();
 	SetupGame(false);
@@ -893,6 +897,17 @@ bool Board::MovePiece(int startTile, int endTile)
 	// checks complete
 	bool tookPiece = pieces[endTile] && pieces[endTile]->GetTeam() != currentTurn && pieces[endTile]->GetType() != EN_PASSANT;
 
+	if (startTile == secondLastMoveEnd && endTile == secondLastMoveStart)
+	{
+		repeatedMoveCount++;
+	}
+	else
+	{
+		repeatedMoveCount = 0;
+	}
+
+	secondLastMoveStart = lastMoveStart;
+	secondLastMoveEnd = lastMoveEnd;
 	lastMoveStart = startTile;
 	lastMoveEnd = endTile;
 
@@ -1422,7 +1437,7 @@ void Board::CompleteTurn()
 		return;
 	}
 
-	if (bVsComputer && currentTurn == compTeam)
+	if (bVsComputer && currentTurn == compTeam && !bTesting && !bSearching)
 	{
 		PlayCompMove();
 	}
@@ -1605,11 +1620,19 @@ void Board::CalculateMoves()
 	CalculateCastling();
 	CalculateCheck();
 
-	if (!bSearching && !bTesting)
+	if (repeatedMoveCount >= 6)
+	{
+		GameOver(NONE);
+		return;
+	}
+
+	if (!bSearching && !bTesting && !bGameOver && false)
 	{
 		int eval = CalcEval(2);
 		eval *= currentTurn == WHITE ? 1 : -1;
+		printf("%i vs. %i\n", CalcWhiteValue(), CalcBlackValue());
 		printf("Eval: %i %s\n", eval, currentTurn == WHITE ? "WHITE" : "BLACK");
+		printf("Best move: %s %s\n", ToBoard(bestMoveStart).c_str(), ToBoard(bestMoveEnd).c_str());
 	}
 }
 
@@ -1714,17 +1737,12 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetBlack))
 		{
 			bInCheckWhite = true;
-#ifdef TESTING
-			if (!bTesting && !bSearching)
-			{
-				printf("White in check!\n");
-			}
-#endif
 			int moveCount = CalcValidCheckMoves();
 
 #ifdef TESTING
 			if (!bTesting && !bSearching)
 			{
+				printf("White in check!\n");
 				printf("%i moves possible!\n", moveCount);
 			}
 #endif
@@ -1735,12 +1753,19 @@ void Board::CalculateCheck()
 				return;
 			}
 
-			soundEngine->play2D("sounds/move-check.mp3");
+			if (!bTesting && !bSearching)
+			{
+				soundEngine->play2D("sounds/move-check.mp3");
+			}
 		}
 		else
 		{
 			bInCheckWhite = false;
-			PlayMoveSound();
+
+			if (!bTesting && !bSearching)
+			{
+				PlayMoveSound();
+			}
 		}
 	}
 	else
@@ -1748,17 +1773,12 @@ void Board::CalculateCheck()
 		if (TileInContainer(kingPos, attackSetWhite))
 		{
 			bInCheckBlack = true;
-#ifdef TESTING
-			if (!bTesting && !bSearching)
-			{
-				printf("Black in check!\n");
-			}
-#endif
 			int moveCount = CalcValidCheckMoves();
 
 #ifdef TESTING
 			if (!bTesting && !bSearching)
 			{
+				printf("Black in check!\n");
 				printf("%i moves possible!\n", moveCount);
 			}
 #endif
@@ -1769,12 +1789,18 @@ void Board::CalculateCheck()
 				return;
 			}
 
-			soundEngine->play2D("sounds/move-check.mp3");
+			if (!bTesting && !bSearching)
+			{
+				soundEngine->play2D("sounds/move-check.mp3");
+			}
 		}
 		else
 		{
 			bInCheckBlack = false;
-			PlayMoveSound();
+			if (!bTesting && !bSearching)
+			{
+				PlayMoveSound();
+			}
 		}
 	}
 
@@ -2181,6 +2207,9 @@ void Board::SetupGame(bool bTest)
 	pieceToPromote = -1;
 	lastMoveStart = -1;
 	lastMoveEnd = -1;
+	secondLastMoveStart = -1;
+	secondLastMoveEnd = -1;
+	repeatedMoveCount = 0;
 
 	bInCheckBlack = false;
 	bInCheckWhite = false;
@@ -2242,7 +2271,7 @@ int Board::EvaluatePosition()
 
 int Board::Search(const int ply, const int depth)
 {
-	int eval;
+	int eval = 0;
 	
 	if (ply > depth)
 	{
@@ -2296,7 +2325,17 @@ int Board::Search(const int ply, const int depth)
 
 			// calc deeper moves with recursion and add
 			eval = -Search(ply + 1, depth);
-			bestEval = eval > bestEval ? eval : bestEval;
+
+			if (eval >= bestEval && ply == 1)
+			{
+				bestEval = eval;
+				bestMoveStart = startTile;
+				bestMoveEnd = move;
+			}
+			else if (eval >= bestEval)
+			{
+				bestEval = eval;
+			}
 
 			// undo move by restoring board state
 			RecoverBoardState(boardState.get());
@@ -2345,6 +2384,14 @@ int Board::CalcEval(const int depth)
 }
 
 void Board::PlayCompMove()
+{
+	if (!MovePiece(bestMoveStart, bestMoveEnd))
+	{
+		printf("Computer cannot make optimal move from search!\n");
+	}
+}
+
+void Board::PlayCompMoveRandom()
 {
 	std::random_device rd;
 	std::uniform_int_distribution<int> tiles(0, 63);
@@ -2442,11 +2489,11 @@ void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
 	bGameOver = true;
-	soundEngine->stopAllSounds();
-	soundEngine->play2D("sounds/game-end.mp3");
 
 	if (!bTesting && !bSearching)
 	{
+		soundEngine->stopAllSounds();
+		soundEngine->play2D("sounds/game-end.mp3");
 		ClearButtons();
 		Button* continueButton = new Button(this, (float)width / 8 * 7, 0.038f, 0.2f, (float)width / 8, 0.12f, 0.15f);
 		continueButton->SetCallback(std::bind(&Board::ContinueCallback, this));
@@ -2639,7 +2686,7 @@ void Board::ShowWinnerMessage()
 	}
 }
 
-void Board::SetupBoardFromFEN(std::string fen)
+void Board::SetupBoardFromFEN(const std::string fen)
 {
 	for (size_t i = 0; i < 64; i++)
 	{
@@ -2718,6 +2765,29 @@ void Board::SetupBoardFromFEN(std::string fen)
 		enPassantOwner = pieces[lastEnPassantIndex + 8];
 	}
 	lastEnPassantIndex = -1;
+}
+
+void Board::SetBoardCoords()
+{
+	char file = 'a';
+	int tile = 0;
+	std::string coord = "";
+	for (int i = 8; i > 0; i--)
+	{
+		for (int j = 0; j < 8; j++)
+		{
+			coord = file + j;
+			std::string s = std::to_string(i);
+			coord += s;
+			boardCoords[tile] = coord;
+			tile++;
+		}
+	}
+}
+
+std::string Board::ToBoard(const int tile) const
+{
+	return boardCoords[tile];
 }
 
 bool Board::ShouldHighlightSelectedObject(int selectedObjectId, int objectId)
