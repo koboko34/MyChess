@@ -11,8 +11,7 @@ enum PieceType
 	KNIGHT = 3,
 	ROOK = 4,
 	PAWN = 5,
-	EN_PASSANT = 6,
-	NONE = 7
+	EN_PASSANT = 6
 };
 
 enum PieceValue
@@ -26,7 +25,7 @@ enum PieceValue
 	EN_PASSANT_VAL = 1
 };
 
-enum class PieceTeam
+enum PieceTeam
 {
 	NONE = 0,
 	WHITE = 1,

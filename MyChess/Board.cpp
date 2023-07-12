@@ -22,6 +22,12 @@ Board::Board()
 
 Board::~Board()
 {
+	for (Piece* piece : pieces)
+	{
+		delete piece;
+		piece = nullptr;
+	}
+
 	if (VAO != 0)
 	{
 		glDeleteVertexArrays(1, &VAO);
@@ -39,6 +45,12 @@ Board::~Board()
 	{
 		glDeleteTextures(1, &piecesTextureId);
 	}
+
+	for (PieceType type : promotionTypes)
+	{
+		delete promotionPieces[type];
+	}
+	promotionPieces.clear();
 }
 
 void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow* window, irrklang::ISoundEngine* sEngine)
@@ -62,7 +74,7 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 	SetupBoard(view, projection);
 	SetupPieces(view, projection);
 	SetupPickingShader(view, projection);
-	// SetupPromotionPieces();
+	SetupPromotionPieces();
 
 	SetBoardCoords();
 	PrepEdges();
@@ -177,7 +189,7 @@ void Board::SetupPieces(glm::mat4 view, glm::mat4 projection)
 
 	for (int i = 0; i < 64; i++)
 	{
-		pieces[i] = Piece(PieceTeam::NONE, PieceType::NONE);
+		pieces[i] = nullptr;
 	}
 }
 
@@ -203,8 +215,8 @@ void Board::SetupPromotionPieces()
 {
 	for (PieceType type : promotionTypes)
 	{
-		Piece piece(PieceTeam::WHITE, type);
-		std::pair<PieceType, Piece> keyValPair(type, piece);
+		Piece* piece = new Piece(WHITE, type);
+		std::pair<int, Piece*> keyValPair(type, piece);
 		promotionPieces.insert(keyValPair);
 	}
 }
@@ -332,7 +344,7 @@ void Board::RenderPieces()
 		{
 			int objectId = (8 - rank) * 8 + file - 1;
 
-			if (pieces[objectId].GetType() == NONE || pieces[objectId].GetTeam() == PieceTeam::NONE)
+			if (pieces[objectId] == nullptr)
 			{
 				continue;
 			}
@@ -342,7 +354,7 @@ void Board::RenderPieces()
 			pieceModel = glm::scale(pieceModel, glm::vec3(tileSize, tileSize, 1.f));
 			glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
 
-			pieces[objectId].DrawPiece();
+			pieces[objectId]->DrawPiece();
 		}
 	}
 
@@ -398,7 +410,7 @@ void Board::RenderPromotionPieces()
 		pieceModel = glm::scale(pieceModel, glm::vec3(tileSize + 0.05, tileSize + 0.05, 1.f));
 		glUniformMatrix4fv(pieceModelLocation, 1, GL_FALSE, glm::value_ptr(pieceModel));
 
-		promotionPieces[promotionTypes[pieceType]].DrawPiece();
+		promotionPieces[promotionTypes[pieceType]]->DrawPiece();
 		pieceType++;
 	}
 
@@ -532,12 +544,12 @@ void Board::PlaySingleplayerCallback()
 {
 	ClearButtons();
 	
-	Button* whiteButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
-	whiteButton->SetColor(1.f, 1.f, 1.f);
-	whiteButton->SetCallback(std::bind(&Board::PlayWhiteCallback, this));
-	whiteButton->bUseTexture = true;
-	whiteButton->SetTexture("textures/buttons/PieceTeam::WHITE.png");
-	buttons.push_back(whiteButton);
+	Button* playWhiteButton = new Button(this, (float)width / 4, 0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
+	playWhiteButton->SetColor(1.f, 1.f, 1.f);
+	playWhiteButton->SetCallback(std::bind(&Board::PlayWhiteCallback, this));
+	playWhiteButton->bUseTexture = true;
+	playWhiteButton->SetTexture("textures/buttons/white.png");
+	buttons.push_back(playWhiteButton);
 
 	Button* playBlackButton = new Button(this, (float)width / 4 * 3, -0.1f, 0.6f, (float)width / 4, 0.f, 0.2f);
 	playBlackButton->SetColor(0.f, 0.f, 0.f);
@@ -555,7 +567,7 @@ void Board::PlaySingleplayerCallback()
 
 void Board::PlayWhiteCallback()
 {
-	compTeam = PieceTeam::BLACK;
+	compTeam = BLACK;
 	bVsComputer = true;
 	bInMainMenu = false;
 	bInGame = true;
@@ -564,7 +576,7 @@ void Board::PlayWhiteCallback()
 
 void Board::PlayBlackCallback()
 {
-	compTeam = PieceTeam::WHITE;
+	compTeam = WHITE;
 	bVsComputer = true;
 	bInMainMenu = false;
 	bInGame = true;
@@ -659,7 +671,7 @@ int Board::ShannonTest(int ply, const int depth)
 	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
 
 	std::vector<int> attackMap[64];
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
 	}
@@ -673,7 +685,7 @@ int Board::ShannonTest(int ply, const int depth)
 	{
 		std::vector<int> movesFound;
 		
-		if (pieces[startTile].GetType() == NONE || pieces[startTile].GetTeam() != currentTurn || attackMap[startTile].empty())
+		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != currentTurn || attackMap[startTile].empty())
 			continue;
 
 		for (int move : attackMap[startTile])
@@ -685,10 +697,10 @@ int Board::ShannonTest(int ply, const int depth)
 			movesFound.push_back(move);
 			
 			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
-			currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
+			currentTurn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
 			for (int tileMove : attackMap[startTile])
 			{
-				currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
+				currentTurn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
 			}
 
 			// play move
@@ -713,7 +725,7 @@ std::string Board::BoardToFEN()
 	int length = 0;
 	int spaces = 0;
 
-	for (const Piece& piece : pieces)
+	for (Piece* piece : pieces)
 	{
 		if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
 		{
@@ -721,7 +733,7 @@ std::string Board::BoardToFEN()
 			spaces = 0;
 		}
 
-		if (piece.GetType() == NONE || piece.GetTeam() == PieceTeam::NONE)
+		if (piece == nullptr)
 		{
 			spaces++;
 			if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
@@ -748,7 +760,7 @@ std::string Board::BoardToFEN()
 			spaces = 0;
 		}
 
-		switch (piece.GetType())
+		switch (piece->GetType())
 		{
 		case KING:
 			fenChar = "k";
@@ -773,7 +785,7 @@ std::string Board::BoardToFEN()
 			break;
 		}
 
-		if (piece.GetTeam() == PieceTeam::WHITE)
+		if (piece->GetTeam() == WHITE)
 		{
 			for (char c : fenChar)
 			{
@@ -793,7 +805,7 @@ void Board::RecoverPieceMovedState(const std::vector<PieceMovedState> pieceMoved
 {
 	for (PieceMovedState boardState : pieceMovedStates)
 	{
-		pieces[boardState.tile].bMoved = boardState.bMoved;
+		pieces[boardState.tile]->bMoved = boardState.bMoved;
 	}
 }
 
@@ -801,12 +813,12 @@ void Board::CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState
 {
 	for (size_t i = 0; i < 64; i++)
 	{
-		if (pieces[i].GetType() == NONE || pieces[i].GetTeam() == PieceTeam::NONE)
+		if (pieces[i] == nullptr)
 			continue;
 
-		if (pieces[i].GetType() == PAWN || pieces[i].GetType() == ROOK || pieces[i].GetType() == KING)
+		if (pieces[i]->GetType() == PAWN || pieces[i]->GetType() == ROOK || pieces[i]->GetType() == KING)
 		{
-			PieceMovedState state = PieceMovedState(i, pieces[i].bMoved);
+			PieceMovedState state = PieceMovedState(i, pieces[i]->bMoved);
 			pieceMovedState.push_back(state);
 		}
 	}
@@ -819,7 +831,7 @@ void Board::RecoverBoardState(BoardState* boardState)
 	ClearPinnedPieces();
 	currentTurn = boardState->turn;
 	bGameOver = false;
-	bInCheckWhite= boardState->bLocalCheckWhite;
+	bInCheckWhite = boardState->bLocalCheckWhite;
 	bInCheckBlack = boardState->bLocalCheckBlack;
 	lastMoveStart = boardState->lastMoveStart;
 	lastMoveEnd = boardState->lastMoveEnd;
@@ -829,7 +841,7 @@ void Board::RecoverBoardState(BoardState* boardState)
 
 bool Board::MovePiece(int startTile, int endTile)
 {
-	if (pieces[startTile].GetTeam() == PieceTeam::NONE || pieces[startTile].GetType() == NONE)
+	if (pieces[startTile] == nullptr)
 		return false;
 
 	if (!InMapRange(startTile) || !InMapRange(endTile))
@@ -840,7 +852,7 @@ bool Board::MovePiece(int startTile, int endTile)
 #ifdef TESTING
 		if (!bTesting && !bSearching)
 		{
-			printf("It is %s's move!\n", currentTurn == PieceTeam::WHITE ? "white" : "black");
+			printf("It is %s's move!\n", currentTurn == WHITE ? "white" : "black");
 		}
 #endif
 		return false;
@@ -858,7 +870,7 @@ bool Board::MovePiece(int startTile, int endTile)
 		return false;
 	}
 
-	if (pieces[endTile].GetType() == NONE && pieces[startTile].GetTeam() == pieces[endTile].GetTeam())
+	if (pieces[endTile] && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
 	{
 #ifdef TESTING
 		if (!bTesting && !bSearching)
@@ -870,7 +882,7 @@ bool Board::MovePiece(int startTile, int endTile)
 	}
 
 	// check if move puts self in check by king moving into attacked square
-	if (pieces[startTile].GetType() == KING && TileInContainer(endTile, pieces[startTile].GetTeam() == PieceTeam::WHITE ? attackSetBlack : attackSetWhite))
+	if (pieces[startTile]->GetType() == KING && TileInContainer(endTile, pieces[startTile]->GetTeam() == WHITE ? attackSetBlack : attackSetWhite))
 	{
 #ifdef TESTING
 		if (!bTesting && !bSearching)
@@ -882,9 +894,9 @@ bool Board::MovePiece(int startTile, int endTile)
 	}
 
 	// if in check
-	if (currentTurn == PieceTeam::WHITE ? bInCheckWhite: bInCheckBlack == true)
+	if (currentTurn == WHITE ? bInCheckWhite : bInCheckBlack == true)
 	{
-		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile].GetType() == KING && KingEscapesCheck(endTile)) && !MoveTakesCheckingPiece(endTile))
+		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile]->GetType() == KING && KingEscapesCheck(endTile)) && !MoveTakesCheckingPiece(endTile))
 		{
 #ifdef TESTING
 			if (!bTesting && !bSearching)
@@ -898,7 +910,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 
 	// checks complete
-	bool bTookPiece = pieces[endTile].GetType() != NONE && pieces[endTile].GetTeam() != currentTurn && pieces[endTile].GetType() != EN_PASSANT;
+	bool tookPiece = pieces[endTile] && pieces[endTile]->GetTeam() != currentTurn && pieces[endTile]->GetType() != EN_PASSANT;
 
 	if (startTile == secondLastMoveEnd && endTile == secondLastMoveStart)
 	{
@@ -914,17 +926,21 @@ bool Board::MovePiece(int startTile, int endTile)
 	lastMoveStart = startTile;
 	lastMoveEnd = endTile;
 
-	if (pieces[startTile].GetType() == PAWN && pieces[endTile].GetType() == EN_PASSANT)
+	if (pieces[endTile])
 	{
-		// handle destruction of en passant piece owner when move is confirmed
-		TakeByEnPassant();
+		if (pieces[startTile]->GetType() == PAWN && pieces[endTile]->GetType() == EN_PASSANT)
+		{
+			// handle destruction of en passant piece owner when move is confirmed
+			TakeByEnPassant();
+		}
+		delete pieces[endTile];
 	}
 
 	pieces[endTile] = pieces[startTile];
-	pieces[startTile].SetPiece(PieceTeam::NONE, PieceType::NONE);
-	pieces[endTile].bMoved = true;
+	pieces[startTile] = nullptr;
+	pieces[endTile]->bMoved = true;
 
-	switch (pieces[endTile].GetType())
+	switch (pieces[endTile]->GetType())
 	{
 	case PAWN:
 		CreateEnPassant(startTile, endTile);
@@ -938,11 +954,11 @@ bool Board::MovePiece(int startTile, int endTile)
 	}
 
 	// set relevant sound, played after checking if check or checkmate in CalculateCheck()
-	if (bTookPiece)
+	if (tookPiece)
 		lastMoveSound = CAPTURE;
 	else if (bSetPromoSound)
 		lastMoveSound = PROMOTE;
-	else if (currentTurn == PieceTeam::BLACK)
+	else if (currentTurn == BLACK)
 		lastMoveSound = MOVE_OPP;
 	else
 		lastMoveSound = MOVE_SELF;
@@ -961,7 +977,7 @@ bool Board::MovePiece(int startTile, int endTile)
 
 bool Board::CheckLegalMove(int startTile, int endTile)
 {	
-	return TileInContainer(endTile, currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
+	return TileInContainer(endTile, currentTurn == WHITE ? attackMapWhite[startTile] : attackMapBlack[startTile]);
 }
 
 void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int kingPos, bool& foundKing, std::vector<int>& checkLOS, std::vector<int>& attackingTiles)
@@ -976,7 +992,7 @@ void Board::CalcSlidingMovesOneDir(int startTile, int dir, int min, int max, int
 	{
 		if (blockedByNonKing)
 		{
-			if (BlockedByEnemyPiece(startTile, target) && pieces[target].GetType() == KING && pieces[target].GetTeam() != pieces[startTile].GetTeam())
+			if (BlockedByEnemyPiece(startTile, target) && pieces[target]->GetType() == KING && pieces[target]->GetTeam() != pieces[startTile]->GetTeam())
 			{
 				pinLOS.push_back(startTile);
 				AddPinnedPiece(pinnedPieceTile, pinLOS);
@@ -1207,9 +1223,9 @@ void Board::CalcBishopMoves(int startTile)
 	std::vector<int> attackingTiles;
 	std::vector<int> checkLOS;
 
-	PieceTeam team = pieces[startTile].GetTeam();
+	PieceTeam team = pieces[startTile]->GetTeam();
 
-	int kingPos = team == PieceTeam::WHITE ? kingPosBlack : kingPosWhite;
+	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
 	bool foundKing = false;
 
 	int topLeft = edgesFromTiles[startTile].topLeft;
@@ -1241,9 +1257,9 @@ void Board::CalcKnightMoves(int startTile)
 	std::vector<int> attackingTiles;
 	std::vector<int> checkLOS;
 
-	PieceTeam team = pieces[startTile].GetTeam();
+	PieceTeam team = pieces[startTile]->GetTeam();
 
-	int kingPos = team == PieceTeam::WHITE ? kingPosBlack : kingPosWhite;
+	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
 
 	if (TileInContainer(startTile, aFile))
 	{
@@ -1297,9 +1313,9 @@ void Board::CalcRookMoves(int startTile)
 	std::vector<int> attackingTiles;
 	std::vector<int> checkLOS;
 
-	PieceTeam team = pieces[startTile].GetTeam();
+	PieceTeam team = pieces[startTile]->GetTeam();
 	
-	int kingPos = team == PieceTeam::WHITE ? kingPosBlack : kingPosWhite;
+	int kingPos = team == WHITE ? kingPosBlack : kingPosWhite;
 	bool foundKing = false;
 
 	int top = edgesFromTiles[startTile].top;
@@ -1330,7 +1346,7 @@ void Board::CalcPawnMoves(int startTile)
 {
 	// 4 cases, move forward by 1, move forward by 2 (only first move), take diagonal, take by en passant
 	std::vector<int> attackingTiles;
-	int teamDir = pieces[startTile].GetTeam() == PieceTeam::WHITE ? 1 : -1;
+	int teamDir = pieces[startTile]->GetTeam() == WHITE ? 1 : -1;
 	int target;
 
 	// forward by 1
@@ -1341,21 +1357,21 @@ void Board::CalcPawnMoves(int startTile)
 	// forward by 2 if first move of this pawn
 	// handle creation of en passant piece when move is confirmed
 	target = startTile + (2 * UP) * teamDir;
-	if (InMapRange(target) && !pieces[startTile].bMoved && !BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target) &&
+	if (InMapRange(target) && !pieces[startTile]->bMoved && !BlockedByOwnPiece(startTile, target) && !BlockedByEnemyPiece(startTile, target) &&
 		!BlockedByOwnPiece(startTile, target + DOWN * teamDir) && !BlockedByEnemyPiece(startTile, target + DOWN * teamDir))
 		attackingTiles.push_back(target);
 
 	// take on diagonal, local forward right
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_RIGHT * teamDir;
-	if (InMapRange(target) && ((pieces[startTile].GetTeam() == PieceTeam::WHITE && !TileInContainer(startTile, hFile)) || (pieces[startTile].GetTeam() == PieceTeam::BLACK && !TileInContainer(startTile, aFile))))
+	if (InMapRange(target) && ((pieces[startTile]->GetTeam() == WHITE && !TileInContainer(startTile, hFile)) || (pieces[startTile]->GetTeam() == BLACK && !TileInContainer(startTile, aFile))))
 	{
-		if (pieces[target].GetType() != NONE || pieces[target].GetTeam() != PieceTeam::NONE)
+		if (pieces[target])
 		{
-			if (pieces[startTile].GetTeam() != pieces[target].GetTeam())
+			if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 			{
 				attackingTiles.push_back(target);
-				if (pieces[target].GetType() == KING)
+				if (pieces[target]->GetType() == KING)
 				{
 					std::vector<int> checkLOS;
 					checkLOS.push_back(target);
@@ -1376,14 +1392,14 @@ void Board::CalcPawnMoves(int startTile)
 	// take on diagonal, local forward left
 	// handle destruction of en passant piece when move is confirmed
 	target = startTile + TOP_LEFT * teamDir;
-	if (InMapRange(target) && ((pieces[startTile].GetTeam() == PieceTeam::WHITE && !TileInContainer(startTile, aFile)) || (pieces[startTile].GetTeam() == PieceTeam::BLACK && !TileInContainer(startTile, hFile))))
+	if (InMapRange(target) && ((pieces[startTile]->GetTeam() == WHITE && !TileInContainer(startTile, aFile)) || (pieces[startTile]->GetTeam() == BLACK && !TileInContainer(startTile, hFile))))
 	{
-		if (pieces[target].GetTeam() != PieceTeam::NONE || pieces[target].GetType() != NONE)
+		if (pieces[target])
 		{
-			if (pieces[startTile].GetTeam() != pieces[target].GetTeam())
+			if (pieces[startTile]->GetTeam() != pieces[target]->GetTeam())
 			{
 				attackingTiles.push_back(target);
-				if (pieces[target].GetType() == KING)
+				if (pieces[target]->GetType() == KING)
 				{
 					std::vector<int> checkLOS;
 					checkLOS.push_back(target);
@@ -1406,12 +1422,12 @@ void Board::CalcPawnMoves(int startTile)
 
 bool Board::BlockedByOwnPiece(int startTile, int target) const
 {
-	return InMapRange(target) && pieces[target].GetTeam() != PieceTeam::NONE && pieces[target].GetType() != NONE && pieces[startTile].GetTeam() == pieces[target].GetTeam() && pieces[target].GetType() != EN_PASSANT;
+	return InMapRange(target) && pieces[target] && pieces[startTile]->GetTeam() == pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
 }
 
 bool Board::BlockedByEnemyPiece(int startTile, int target) const
 {
-	return pieces[target].GetTeam() != PieceTeam::NONE && pieces[target].GetType() != NONE && pieces[startTile].GetTeam() != pieces[target].GetTeam() && pieces[target].GetType() != EN_PASSANT;
+	return pieces[target] && pieces[startTile]->GetTeam() != pieces[target]->GetTeam() && pieces[target]->GetType() != EN_PASSANT;
 }
 
 void Board::CompleteTurn()
@@ -1419,16 +1435,16 @@ void Board::CompleteTurn()
 	ClearEnPassant();
 	ClearPinnedPieces();
 
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
-		bInCheckWhite= false;
+		bInCheckWhite = false;
 	}
 	else
 	{
 		bInCheckBlack = false;
 	}
 
-	currentTurn = currentTurn == PieceTeam::WHITE ? PieceTeam::BLACK : PieceTeam::WHITE;
+	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
 
 	if (bSearching && bSearchEnd)
 	{
@@ -1460,7 +1476,7 @@ void Board::AddNotBlocked(int startTile, int target, std::vector<int>& validMove
 
 void Board::CalculateCastling()
 {
-	if (pieces[kingPosWhite].bMoved == false)
+	if (pieces[kingPosWhite]->bMoved == false)
 	{
 		// long castle
 		int target = kingPosWhite - 2;
@@ -1479,7 +1495,7 @@ void Board::CalculateCastling()
 		}
 	}
 
-	if (pieces[kingPosBlack].bMoved == false)
+	if (pieces[kingPosBlack]->bMoved == false)
 	{
 		// long castle
 		int target = kingPosBlack - 2;
@@ -1501,13 +1517,12 @@ void Board::CalculateCastling()
 
 bool Board::CheckCanCastle(int startTile, int target, int rookPos, int dir) const
 {
-	PieceTeam team = pieces[startTile].GetTeam();
+	int team = pieces[startTile]->GetTeam();
 	
-	return InMapRange(target) && pieces[target].GetTeam() == PieceTeam::NONE && pieces[target].GetType() == NONE &&
-		pieces[target - dir].GetTeam() == PieceTeam::NONE && pieces[target - dir].GetType() == NONE &&
-		InMapRange(rookPos) && pieces[rookPos].GetTeam() != PieceTeam::NONE && pieces[rookPos].GetType() != NONE && pieces[rookPos].GetTeam() == pieces[startTile].GetTeam() &&
-		pieces[rookPos].GetType() == ROOK && !pieces[rookPos].bMoved &&
-		!TileInContainer(target, team == PieceTeam::WHITE ? attackSetBlack : attackSetWhite) && !TileInContainer(target - dir, team == PieceTeam::WHITE ? attackSetBlack : attackSetWhite);
+	return InMapRange(target) && pieces[target] == nullptr && pieces[target - dir] == nullptr &&
+		InMapRange(rookPos) && pieces[rookPos] && pieces[rookPos]->GetTeam() == pieces[startTile]->GetTeam() &&
+		pieces[rookPos]->GetType() == ROOK && !pieces[rookPos]->bMoved &&
+		!TileInContainer(target, team == WHITE ? attackSetBlack : attackSetWhite) && !TileInContainer(target - dir, team == WHITE ? attackSetBlack : attackSetWhite);
 }
 
 void Board::HandleCastling(int startTile, int endTile)
@@ -1516,15 +1531,15 @@ void Board::HandleCastling(int startTile, int endTile)
 	if (startTile - 2 == endTile)
 	{
 		pieces[startTile - 1] = pieces[startTile - 4];
-		pieces[startTile - 4].SetPiece(PieceTeam::NONE, PieceType::NONE);
-		pieces[startTile - 1].bMoved = true;
+		pieces[startTile - 4] = nullptr;
+		pieces[startTile - 1]->bMoved = true;
 	}
 	// short castle
 	else if (startTile + 2 == endTile)
 	{
 		pieces[startTile + 1] = pieces[startTile + 3];
-		pieces[startTile + 3].SetPiece(PieceTeam::NONE, PieceType::NONE);
-		pieces[startTile + 1].bMoved = true;
+		pieces[startTile + 3] = nullptr;
+		pieces[startTile + 1]->bMoved = true;
 	}
 }
 
@@ -1532,12 +1547,12 @@ void Board::HandleCastling(int startTile, int endTile)
 
 void Board::CreateEnPassant(int startTile, int endTile)
 {
-	int teamDir = pieces[endTile].GetTeam() == PieceTeam::WHITE ? -1 : 1;
+	int teamDir = pieces[endTile]->GetTeam() == WHITE ? -1 : 1;
 	if (startTile + 16 * teamDir == endTile)
 	{
-		pieces[startTile + 8 * teamDir].SetPiece(currentTurn, EN_PASSANT);
+		pieces[startTile + 8 * teamDir] = new Piece(currentTurn, EN_PASSANT);
 		lastEnPassantIndex = startTile + 8 * teamDir;
-		enPassantOwner = endTile;
+		enPassantOwner = pieces[endTile];
 	}
 }
 
@@ -1545,9 +1560,10 @@ void Board::ClearEnPassant()
 {
 	for (size_t i = 0; i < 64; i++)
 	{
-		if (pieces[i].GetTeam() != PieceTeam::NONE && pieces[i].GetType() == EN_PASSANT && i != lastEnPassantIndex)
+		if (pieces[i] && pieces[i]->GetType() == EN_PASSANT && i != lastEnPassantIndex)
 		{
-			pieces[i].SetPiece(PieceTeam::NONE, PieceType::NONE);
+			delete pieces[i];
+			pieces[i] = nullptr;
 		}
 	}
 	lastEnPassantIndex = -1;
@@ -1557,10 +1573,11 @@ void Board::TakeByEnPassant()
 {
 	for (size_t i = 0; i < 64; i++)
 	{
-		if (i == enPassantOwner)
+		if (pieces[i] == enPassantOwner)
 		{
-			pieces[i].SetPiece(PieceTeam::NONE, PieceType::NONE);
-			enPassantOwner = -1;
+			delete pieces[i];
+			pieces[i] = nullptr;
+			enPassantOwner = nullptr;
 			return;
 		}
 	}
@@ -1568,7 +1585,7 @@ void Board::TakeByEnPassant()
 
 void Board::HandlePromotion(int endTile)
 {
-	if ((currentTurn == PieceTeam::WHITE && TileInContainer(endTile, eighthRank)) || (currentTurn == PieceTeam::BLACK && TileInContainer(endTile, firstRank)))
+	if ((currentTurn == WHITE && TileInContainer(endTile, eighthRank)) || (currentTurn == BLACK && TileInContainer(endTile, firstRank)))
 	{
 		bChoosingPromotion = true;
 		bSetPromoSound = true;
@@ -1591,12 +1608,12 @@ void Board::CalculateMoves()
 		attackMapWhite[i].clear();
 		attackMapBlack[i].clear();
 
-		if (pieces[i].GetTeam() == PieceTeam::NONE || pieces[i].GetType() == NONE || pieces[i].GetType() == EN_PASSANT)
+		if (pieces[i] == nullptr || pieces[i]->GetType() == EN_PASSANT)
 		{
 			continue;
 		}
 
-		switch (pieces[i].GetType())
+		switch (pieces[i]->GetType())
 		{
 		case KING:
 			CalcKingMoves(i);
@@ -1626,20 +1643,18 @@ void Board::CalculateMoves()
 
 	if (repeatedMoveCount >= 6)
 	{
-		GameOver(PieceTeam::NONE);
+		GameOver(NONE);
 		return;
 	}
 
-	if (!bSearching && !bTesting && !bGameOver && false)
+	if (!bSearching && !bTesting && !bGameOver)
 	{
-#ifdef TESTING
 		Timer timer("Eval scope");
-#endif
-
+		
 		int eval = CalcEval(DEPTH);
-		eval *= currentTurn == PieceTeam::WHITE ? 1 : -1;
+		eval *= currentTurn == WHITE ? 1 : -1;
 		printf("%i vs. %i\n", CalcWhiteValue(), CalcBlackValue());
-		printf("Eval: %i %s\n", eval, currentTurn == PieceTeam::WHITE ? "White" : "Black");
+		printf("Eval: %i %s\n", eval, currentTurn == WHITE ? "WHITE" : "BLACK");
 		printf("Best move: %s %s\n", ToBoard(bestMoveStart).c_str(), ToBoard(bestMoveEnd).c_str());
 	}
 }
@@ -1652,7 +1667,7 @@ void Board::CalculateAttacks()
 			continue;
 
 		// if pawn, only insert attacking, diagonal moves
-		if (pieces[tile].GetType() == PAWN)
+		if (pieces[tile]->GetType() == PAWN)
 		{
 			for (int i : attackMapWhite[tile])
 			{
@@ -1676,7 +1691,7 @@ void Board::CalculateAttacks()
 			continue;
 
 		// if pawn, only insert attacking, diagonal moves
-		if (pieces[tile].GetType() == PAWN)
+		if (pieces[tile]->GetType() == PAWN)
 		{
 			for (int i : attackMapBlack[tile])
 			{
@@ -1702,14 +1717,14 @@ void Board::AddToMap(int startTile, std::vector<int> validMoves)
 		return;
 	}
 
-	if (pieces[startTile].GetTeam() == PieceTeam::WHITE)
+	if (pieces[startTile]->GetTeam() == WHITE)
 	{
 		for (int i : validMoves)
 		{
 			attackMapWhite[startTile].push_back(i);
 		}
 	}
-	else if (pieces[startTile].GetTeam() == PieceTeam::BLACK)
+	else
 	{
 		for (int i : validMoves)
 		{
@@ -1720,11 +1735,11 @@ void Board::AddToMap(int startTile, std::vector<int> validMoves)
 
 void Board::AddToAttackSet(int startTile, int target)
 {
-	if (pieces[startTile].GetTeam() == PieceTeam::WHITE)
+	if (pieces[startTile]->GetTeam() == WHITE)
 	{
 		attackSetWhite.insert(target);
 	}
-	else if (pieces[startTile].GetTeam() == PieceTeam::BLACK)
+	else
 	{
 		attackSetBlack.insert(target);
 	}
@@ -1734,17 +1749,17 @@ void Board::CalculateCheck()
 {
 	if (CheckStalemate())
 	{
-		GameOver(PieceTeam::NONE);
+		GameOver(NONE);
 		return;
 	}
 	
-	int kingPos = currentTurn == PieceTeam::WHITE ? kingPosWhite: kingPosBlack;
+	int kingPos = currentTurn == WHITE ? kingPosWhite : kingPosBlack;
 
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		if (TileInContainer(kingPos, attackSetBlack))
 		{
-			bInCheckWhite= true;
+			bInCheckWhite = true;
 			int moveCount = CalcValidCheckMoves();
 
 #ifdef TESTING
@@ -1757,7 +1772,7 @@ void Board::CalculateCheck()
 
 			if (moveCount <= 0)
 			{
-				GameOver(PieceTeam::BLACK);
+				GameOver(BLACK);
 				return;
 			}
 
@@ -1768,7 +1783,7 @@ void Board::CalculateCheck()
 		}
 		else
 		{
-			bInCheckWhite= false;
+			bInCheckWhite = false;
 
 			if (!bTesting && !bSearching)
 			{
@@ -1793,7 +1808,7 @@ void Board::CalculateCheck()
 
 			if (moveCount <= 0)
 			{
-				GameOver(PieceTeam::WHITE);
+				GameOver(WHITE);
 				return;
 			}
 
@@ -1818,16 +1833,16 @@ void Board::CalculateCheck()
 	}
 }
 
-void Board::ClearMoves(PieceTeam team)
+void Board::ClearMoves(int team)
 {
-	if (team == PieceTeam::WHITE)
+	if (team == WHITE)
 	{
 		for (std::vector<int>& attacks : attackMapWhite)
 		{
 			attacks.clear();
 		}
 	}
-	else if (team == PieceTeam::BLACK)
+	else if (team == BLACK)
 	{
 		for (std::vector<int>& attacks : attackMapBlack)
 		{
@@ -1838,7 +1853,7 @@ void Board::ClearMoves(PieceTeam team)
 
 bool Board::KingEscapesCheck(int endTile)
 {
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		return !attackSetBlack.count(endTile) && !kingXRay.count(endTile);
 	}
@@ -1932,11 +1947,11 @@ bool Board::CanKingEscape(int startTile, int& moveCount)
 
 bool Board::MoveBlocksCheck(int startTile, int endTile)
 {
-	int size = currentTurn == PieceTeam::WHITE ? checkingPiecesBlack.size() : checkingPiecesWhite.size();
+	int size = currentTurn == WHITE ? checkingPiecesBlack.size() : checkingPiecesWhite.size();
 
 	if (size == 1)
 	{
-		return pieces[startTile].GetType() != KING && TileInContainer(endTile, currentTurn == PieceTeam::WHITE ? checkingPiecesBlack[0].lineOfSight : checkingPiecesWhite[0].lineOfSight);
+		return pieces[startTile]->GetType() != KING && TileInContainer(endTile, currentTurn == WHITE ? checkingPiecesBlack[0].lineOfSight : checkingPiecesWhite[0].lineOfSight);
 	}
 	return false;
 }
@@ -1946,7 +1961,7 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 	bool bCanBlockCheck = false;
 
 	std::set<int> checkingTiles;
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		for (CheckingPiece piece : checkingPiecesBlack)
 		{
@@ -1961,13 +1976,13 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 		}
 	}
 
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		for (size_t i = 0; i < 64; i++)
 		{
 			for (int tile : attackMapWhite[i])
 			{
-				if (TileInContainer(tile, checkingTiles) && pieces[i].GetTeam() != PieceTeam::NONE && pieces[i].GetType() != NONE && pieces[i].GetType() != KING)
+				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
 				{
 					bCanBlockCheck = true;
 					moveCount++;
@@ -1982,7 +1997,7 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 		{
 			for (int tile : attackMapBlack[i])
 			{
-				if (TileInContainer(tile, checkingTiles) && pieces[i].GetTeam() != PieceTeam::NONE && pieces[i].GetType() != NONE && pieces[i].GetType() != KING)
+				if (TileInContainer(tile, checkingTiles) && pieces[i] && pieces[i]->GetType() != KING)
 				{
 					bCanBlockCheck = true;
 					moveCount++;
@@ -2004,7 +2019,7 @@ bool Board::CanBlockCheck(int kingPos, int& moveCount)
 
 bool Board::MoveTakesCheckingPiece(int endTile)
 {
-	const std::vector<CheckingPiece> checkingPieces = currentTurn == PieceTeam::WHITE ? checkingPiecesBlack : checkingPiecesWhite;
+	auto const checkingPieces = currentTurn == WHITE ? checkingPiecesBlack : checkingPiecesWhite;
 	
 	if (checkingPieces.size() == 1 && endTile == checkingPieces[0].tile)
 	{
@@ -2015,29 +2030,29 @@ bool Board::MoveTakesCheckingPiece(int endTile)
 
 void Board::AddCheckingPiece(int startTile, const std::vector<int>& checkLOS)
 {
-	if (pieces[startTile].GetTeam() == PieceTeam::WHITE)
+	if (pieces[startTile]->GetTeam() == WHITE)
 	{
 		checkingPiecesWhite.emplace(checkingPiecesWhite.begin());
 		checkingPiecesWhite[0].tile = startTile;
-		checkingPiecesWhite[0].pieceType = pieces[startTile].GetType();
+		checkingPiecesWhite[0].pieceType = pieces[startTile]->GetType();
 		checkingPiecesWhite[0].lineOfSight = checkLOS;
 	}
-	else if (pieces[startTile].GetTeam() == PieceTeam::BLACK)
+	else
 	{
 		checkingPiecesBlack.emplace(checkingPiecesBlack.begin());
 		checkingPiecesBlack[0].tile = startTile;
-		checkingPiecesBlack[0].pieceType = pieces[startTile].GetType();
+		checkingPiecesBlack[0].pieceType = pieces[startTile]->GetType();
 		checkingPiecesBlack[0].lineOfSight = checkLOS;
 	}
 }
 
 void Board::AddProtectedPieceToSet(int target)
 {
-	if (pieces[target].GetTeam() == PieceTeam::WHITE)
+	if (pieces[target]->GetTeam() == WHITE)
 	{
 		attackSetWhite.insert(target);
 	}
-	else if (pieces[target].GetTeam() == PieceTeam::BLACK)
+	else
 	{
 		attackSetBlack.insert(target);
 	}
@@ -2055,21 +2070,21 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 
 	bool bCanTakeCheckingPiece = false;
 	int checkPiecePos = -1;
-	if (currentTurn == PieceTeam::WHITE && checkingPiecesBlack.size() > 0)
+	if (currentTurn == WHITE && checkingPiecesBlack.size() > 0)
 	{
 		checkPiecePos = checkingPiecesBlack[0].tile;
 	}
-	else if (currentTurn == PieceTeam::BLACK && checkingPiecesWhite.size() > 0)
+	else if (currentTurn == BLACK && checkingPiecesWhite.size() > 0)
 	{
 		checkPiecePos = checkingPiecesWhite[0].tile;
 	}
 
 	// find moves where own piece attacks the checking piece
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		for (size_t i = 0; i < 64; i++)
 		{
-			if (TileInContainer(checkPiecePos, attackMapWhite[i]) && pieces[i].GetTeam() != PieceTeam::NONE && pieces[i].GetType() != NONE && pieces[i].GetType() != KING)
+			if (TileInContainer(checkPiecePos, attackMapWhite[i]) && pieces[i] && pieces[i]->GetType() != KING)
 			{
 				bCanTakeCheckingPiece = true;
 				moveCount++;
@@ -2081,7 +2096,7 @@ bool Board::CanTakeCheckingPiece(int kingPos, int& moveCount)
 	{
 		for (size_t i = 0; i < 64; i++)
 		{
-			if (TileInContainer(checkPiecePos, attackMapBlack[i]) && pieces[i].GetTeam() != PieceTeam::NONE && pieces[i].GetType() != NONE && pieces[i].GetType() != KING)
+			if (TileInContainer(checkPiecePos, attackMapBlack[i]) && pieces[i] && pieces[i]->GetType() != KING)
 			{
 				bCanTakeCheckingPiece = true;
 				moveCount++;
@@ -2104,17 +2119,17 @@ int Board::CalcValidCheckMoves()
 {	
 	ClearValidCheckMoves();
 
-	int kingPos = currentTurn == PieceTeam::WHITE ? kingPosWhite: kingPosBlack;
+	int kingPos = currentTurn == WHITE ? kingPosWhite : kingPosBlack;
 	int moveCount = 0;
 	
 	CanKingEscape(kingPos, moveCount);
 
-	if (currentTurn == PieceTeam::WHITE && checkingPiecesBlack.size() == 1)
+	if (currentTurn == WHITE && checkingPiecesBlack.size() == 1)
 	{
 		CanBlockCheck(kingPos, moveCount);
 		CanTakeCheckingPiece(kingPos, moveCount);
 	}
-	else if (currentTurn == PieceTeam::BLACK && checkingPiecesWhite.size() == 1)
+	else if (currentTurn == BLACK && checkingPiecesWhite.size() == 1)
 	{
 		CanBlockCheck(kingPos, moveCount);
 		CanTakeCheckingPiece(kingPos, moveCount);
@@ -2122,14 +2137,14 @@ int Board::CalcValidCheckMoves()
 
 	if (moveCount > 0)
 	{
-		if (currentTurn == PieceTeam::WHITE)
+		if (currentTurn == WHITE)
 		{
-			ClearMoves(PieceTeam::WHITE);
+			ClearMoves(WHITE);
 			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapWhite));
 		}
 		else
 		{
-			ClearMoves(PieceTeam::BLACK);
+			ClearMoves(BLACK);
 			std::copy(std::begin(validCheckMoves), std::end(validCheckMoves), std::begin(attackMapBlack));
 		}
 	}
@@ -2166,11 +2181,11 @@ void Board::AddPinnedPiece(int startTile, const std::vector<int>& pinLOS)
 	piece->tile = startTile;
 	piece->lineOfSight = pinLOS;
 
-	if (pieces[startTile].GetTeam() == PieceTeam::WHITE)
+	if (pieces[startTile]->GetTeam() == WHITE)
 	{
 		pinnedPiecesWhite.push_back(piece);
 	}
-	else if (pieces[startTile].GetTeam() == PieceTeam::BLACK)
+	else
 	{
 		pinnedPiecesBlack.push_back(piece);
 	}
@@ -2178,7 +2193,7 @@ void Board::AddPinnedPiece(int startTile, const std::vector<int>& pinLOS)
 
 void Board::HandlePinnedPieces()
 {
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		for (PinnedPiece* piece : pinnedPiecesWhite)
 		{
@@ -2208,9 +2223,9 @@ void Board::HandlePinnedPieces()
 
 void Board::SetupGame(bool bTest)
 {
-	currentTurn = PieceTeam::WHITE;
+	currentTurn = WHITE;
 	lastEnPassantIndex = -1;
-	enPassantOwner = -1;
+	enPassantOwner = nullptr;
 	bChoosingPromotion = false;
 	pieceToPromote = -1;
 	lastMoveStart = -1;
@@ -2223,7 +2238,7 @@ void Board::SetupGame(bool bTest)
 	bInCheckWhite = false;
 	
 	bGameOver = false;
-	winner = PieceTeam::NONE;
+	winner = 0;
 
 	bTesting = bTest;
 
@@ -2238,18 +2253,18 @@ void Board::SetupGame(bool bTest)
 	FindKings();
 	CalculateMoves();
 
-	// CalcEval(DEPTH);
+	CalcEval(DEPTH);
 }
 
 int Board::CalcWhiteValue() const
 {
 	int teamVal = 0;
 
-	for (const Piece& piece : pieces)
+	for (Piece* piece : pieces)
 	{
-		if (piece.GetType() != NONE && piece.GetTeam() == PieceTeam::WHITE && piece.GetType() != EN_PASSANT)
+		if (piece && piece->GetTeam() == WHITE && piece->GetType() != EN_PASSANT)
 		{
-			teamVal += piece.GetValue();
+			teamVal += piece->GetValue();
 		}
 	}
 
@@ -2260,21 +2275,21 @@ int Board::CalcBlackValue() const
 {
 	int teamVal = 0;
 
-	for (const Piece& piece : pieces)
+	for (Piece* piece : pieces)
 	{
-		if (piece.GetType() != NONE && piece.GetTeam() == PieceTeam::BLACK && piece.GetType() != EN_PASSANT)
+		if (piece && piece->GetTeam() == BLACK && piece->GetType() != EN_PASSANT)
 		{
-			teamVal += piece.GetValue();
+			teamVal += piece->GetValue();
 		}
 	}
 
 	return teamVal;
 }
 
-int Board::EvaluatePosition() const
+int Board::EvaluatePosition()
 {
 	int eval = CalcWhiteValue() - CalcBlackValue();
-	int perspective = currentTurn == PieceTeam::WHITE ? 1 : -1;
+	int perspective = currentTurn == WHITE ? 1 : -1;
 
 	return eval * perspective;
 }
@@ -2296,7 +2311,7 @@ int Board::Search(const int ply, const int depth)
 	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
 
 	std::vector<int> attackMap[64];
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
 	}
@@ -2305,14 +2320,14 @@ int Board::Search(const int ply, const int depth)
 		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
 	}
 
-	std::vector<CheckingPiece> checkingPieces = currentTurn == PieceTeam::WHITE ? checkingPiecesBlack : checkingPiecesWhite;
+	std::vector<CheckingPiece> checkingPieces = currentTurn == WHITE ? checkingPiecesBlack : checkingPiecesWhite;
 
 	// for each move
 	for (size_t startTile = 0; startTile < 64; startTile++)
 	{
 		std::vector<int> movesFound;
 
-		if (pieces[startTile].GetType() == NONE || pieces[startTile].GetTeam() != currentTurn || attackMap[startTile].empty())
+		if (pieces[startTile] == nullptr || pieces[startTile]->GetTeam() != currentTurn || attackMap[startTile].empty())
 			continue;
 
 		for (int move : attackMap[startTile])
@@ -2326,10 +2341,10 @@ int Board::Search(const int ply, const int depth)
 			movesFound.push_back(move);
 
 			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
-			currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
+			currentTurn == WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
 			for (int tileMove : attackMap[startTile])
 			{
-				currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
+				currentTurn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
 			}
 
 			// if next move reaches max depth, don't calculate further moves
@@ -2358,18 +2373,18 @@ int Board::Search(const int ply, const int depth)
 
 			// undo move by restoring board state
 			RecoverBoardState(boardState.get());
-			if (currentTurn == PieceTeam::WHITE)
+			if (currentTurn == WHITE)
 			{
 				checkingPiecesBlack = checkingPieces;
 			}
 			else
 			{
-				checkingPiecesWhite= checkingPieces;
+				checkingPiecesWhite = checkingPieces;
 			}
 		}
 
 		// restore attackMap, recovering from cache rather than calculating again
-		if (currentTurn == PieceTeam::WHITE)
+		if (currentTurn == WHITE)
 		{
 			std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapWhite));
 		}
@@ -2380,7 +2395,7 @@ int Board::Search(const int ply, const int depth)
 
 		if (movesFound.empty())
 		{
-			if ((currentTurn == PieceTeam::WHITE && bInCheckWhite) || (currentTurn == PieceTeam::BLACK && bInCheckBlack))
+			if ((currentTurn == WHITE && bInCheckWhite) || (currentTurn == BLACK && bInCheckBlack))
 			{
 				return -999; // nothing is worse than checkmate
 			}
@@ -2424,14 +2439,14 @@ void Board::PlayCompMoveRandom()
 	while (true)
 	{
 		int startTile = tiles(rd);
-		int numOfMoves = compTeam == PieceTeam::WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
+		int numOfMoves = compTeam == WHITE ? attackMapWhite[startTile].size() : attackMapBlack[startTile].size();
 		if (numOfMoves == 0)
 		{
 			continue;
 		}
 
 		std::uniform_int_distribution<int> moves(0, numOfMoves - 1);
-		int endTile = compTeam == PieceTeam::WHITE ? attackMapWhite[startTile][moves(rd)] : attackMapBlack[startTile][moves(rd)];
+		int endTile = compTeam == WHITE ? attackMapWhite[startTile][moves(rd)] : attackMapBlack[startTile][moves(rd)];
 		if (MovePiece(startTile, endTile))
 		{
 			return;
@@ -2441,10 +2456,10 @@ void Board::PlayCompMoveRandom()
 
 bool Board::CheckStalemate()
 {
-	if (currentTurn == PieceTeam::WHITE)
+	if (currentTurn == WHITE)
 	{
 		std::vector<int> movesToRemove;
-		for (const int move : attackMapWhite[kingPosWhite])
+		for (int move : attackMapWhite[kingPosWhite])
 		{
 			if (TileInContainer(move, attackSetBlack))
 			{
@@ -2454,7 +2469,7 @@ bool Board::CheckStalemate()
 
 		if (!movesToRemove.empty())
 		{
-			for (const int move : movesToRemove)
+			for (int move : movesToRemove)
 			{
 				attackMapWhite[kingPosWhite].erase(std::remove(attackMapWhite[kingPosWhite].begin(), attackMapWhite[kingPosWhite].end(), move), attackMapWhite[kingPosWhite].end());
 			}
@@ -2465,7 +2480,7 @@ bool Board::CheckStalemate()
 			return false;
 		}
 
-		for (const std::vector<int>& pieceMoves : attackMapWhite)
+		for (std::vector<int>& pieceMoves : attackMapWhite)
 		{
 			if (!pieceMoves.empty())
 			{
@@ -2476,7 +2491,7 @@ bool Board::CheckStalemate()
 	else
 	{
 		std::vector<int> movesToRemove;
-		for (const int move : attackMapBlack[kingPosBlack])
+		for (int move : attackMapBlack[kingPosBlack])
 		{
 			if (TileInContainer(move, attackSetWhite))
 			{
@@ -2486,7 +2501,7 @@ bool Board::CheckStalemate()
 
 		if (!movesToRemove.empty())
 		{
-			for (const int move : movesToRemove)
+			for (int move : movesToRemove)
 			{
 				attackMapBlack[kingPosBlack].erase(std::remove(attackMapBlack[kingPosBlack].begin(), attackMapBlack[kingPosBlack].end(), move), attackMapBlack[kingPosBlack].end());
 
@@ -2498,7 +2513,7 @@ bool Board::CheckStalemate()
 			return false;
 		}
 
-		for (const std::vector<int>& pieceMoves : attackMapBlack)
+		for (std::vector<int>& pieceMoves : attackMapBlack)
 		{
 			if (!pieceMoves.empty())
 			{
@@ -2510,7 +2525,7 @@ bool Board::CheckStalemate()
 	return true;
 }
 
-void Board::GameOver(PieceTeam winningTeam)
+void Board::GameOver(int winningTeam)
 {
 	winner = winningTeam;
 	bGameOver = true;
@@ -2528,13 +2543,13 @@ void Board::GameOver(PieceTeam winningTeam)
 
 		ShowWinnerMessage();
 
-		if (winner == PieceTeam::NONE)
+		if (winner == NONE)
 		{
 			printf("Stalemate!\n");
 			return;
 		}
 
-		printf("%s wins!\n", winner == PieceTeam::WHITE ? "PieceTeam::WHITE" : "Black");
+		printf("%s wins!\n", winner == WHITE ? "White" : "Black");
 	}
 }
 
@@ -2551,7 +2566,7 @@ void Board::FindKings()
 	int kingsSet = 0;
 	for (size_t i = 0; kingsSet < 2 && i < 64; i++)
 	{
-		if (pieces[i].GetType() == KING)
+		if (pieces[i] != nullptr && pieces[i]->GetType() == KING)
 		{
 			SetKingPos(i);
 			kingsSet++;
@@ -2561,9 +2576,9 @@ void Board::FindKings()
 
 void Board::SetKingPos(int target)
 {
-	if (pieces[target].GetTeam() == PieceTeam::WHITE)
+	if (pieces[target]->GetTeam() == WHITE)
 	{
-		kingPosWhite= target;
+		kingPosWhite = target;
 	}
 	else
 	{
@@ -2680,7 +2695,7 @@ void Board::CalculateEdges()
 
 bool Board::PieceExists(int index)
 {
-	if (pieces[index].GetTeam() == PieceTeam::NONE || pieces[index].GetType() == NONE)
+	if (pieces[index] == nullptr)
 	{
 		return false;
 	}
@@ -2691,23 +2706,24 @@ void Board::Promote(PieceType pieceType)
 {
 	printf("Promoting a piece...\n");
 
-	pieces[pieceToPromote].SetPiece(currentTurn, pieceType);
+	delete pieces[pieceToPromote];
+	pieces[pieceToPromote] = new Piece(currentTurn, pieceType);
 	bChoosingPromotion = false;
 	CompleteTurn();
 }
 
 void Board::ShowWinnerMessage()
 {
-	if (winner == PieceTeam::WHITE)
+	if (winner == WHITE)
 	{
 		Button* winText = new Button(this, (float)width / 8 * 7, 0.038f, 0.7f, (float)width / 8, 0.12f, 0.15f);
 		winText->SetCallback(std::bind(&Board::EmptyFunction, this));
 		winText->bFillButton = false;
 		winText->bUseTexture = true;
-		winText->SetTexture("textures/buttons/PieceTeam::WHITE_wins.png");
+		winText->SetTexture("textures/buttons/white_wins.png");
 		buttons.push_back(winText);
 	}
-	else if (winner == PieceTeam::BLACK)
+	else if (winner == BLACK)
 	{
 		Button* winText = new Button(this, (float)width / 8 * 7, 0.038f, 0.7f, (float)width / 8, 0.12f, 0.15f);
 		winText->SetCallback(std::bind(&Board::EmptyFunction, this));
@@ -2731,7 +2747,11 @@ void Board::SetupBoardFromFEN(const std::string fen)
 {
 	for (size_t i = 0; i < 64; i++)
 	{
-		pieces[i].SetPiece(PieceTeam::NONE, PieceType::NONE);
+		if (pieces[i] == nullptr)
+			continue;
+
+		delete pieces[i];
+		pieces[i] = nullptr;
 	}
 	
 	int index = 0;
@@ -2744,41 +2764,41 @@ void Board::SetupBoardFromFEN(const std::string fen)
 		{
 			if (islower(c))
 			{
-				team = PieceTeam::BLACK;
+				team = BLACK;
 			}
 			else
 			{
-				team = PieceTeam::WHITE;
+				team = WHITE;
 			}
 
 			switch (tolower(c))
 			{
 				case 'r':
-					pieces[index].SetPiece(team, ROOK);
+					pieces[index] = new Piece(team, ROOK);
 					index++;
 					continue;
 				case 'n':
-					pieces[index].SetPiece(team, KNIGHT);
+					pieces[index] = new Piece(team, KNIGHT);
 					index++;
 					continue;
 				case 'b':
-					pieces[index].SetPiece(team, BISHOP);
+					pieces[index] = new Piece(team, BISHOP);
 					index++;
 					continue;
 				case 'q':
-					pieces[index].SetPiece(team, QUEEN);
+					pieces[index] = new Piece(team, QUEEN);
 					index++;
 					continue;
 				case 'k':
-					pieces[index].SetPiece(team, KING);
+					pieces[index] = new Piece(team, KING);
 					index++;
 					continue;
 				case 'p':
-					pieces[index].SetPiece(team, PAWN);
+					pieces[index] = new Piece(team, PAWN);
 					index++;
 					continue;
 				case 'e':
-					pieces[index].SetPiece(team, EN_PASSANT);
+					pieces[index] = new Piece(team, EN_PASSANT);
 					lastEnPassantIndex = index;
 					index++;
 					continue;
@@ -2793,12 +2813,13 @@ void Board::SetupBoardFromFEN(const std::string fen)
 		}
 	}
 
-	if (InMapRange(lastEnPassantIndex))
+	if (InMapRange(lastEnPassantIndex) && pieces[lastEnPassantIndex]->GetTeam() == WHITE)
 	{
-		if (pieces[lastEnPassantIndex].GetTeam() == PieceTeam::WHITE)
-			enPassantOwner = lastEnPassantIndex - 8;
-		else if (pieces[lastEnPassantIndex].GetTeam() == PieceTeam::BLACK)
-			enPassantOwner = lastEnPassantIndex + 8;
+		enPassantOwner = pieces[lastEnPassantIndex - 8];
+	}
+	else
+	{
+		enPassantOwner = pieces[lastEnPassantIndex + 8];
 	}
 	lastEnPassantIndex = -1;
 }
@@ -2828,8 +2849,8 @@ std::string Board::ToBoard(const int tile) const
 
 bool Board::ShouldHighlightSelectedObject(int selectedObjectId, int objectId)
 {
-	return (InMapRange(selectedObjectId) && ((selectedObjectId == objectId && pieces[objectId].GetTeam() != PieceTeam::NONE && pieces[objectId].GetType() != NONE) ||
-		TileInContainer(objectId, currentTurn == PieceTeam::WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])));
+	return (InMapRange(selectedObjectId) && ((selectedObjectId == objectId && pieces[objectId] != nullptr) ||
+		TileInContainer(objectId, currentTurn == WHITE ? attackMapWhite[selectedObjectId] : attackMapBlack[selectedObjectId])));
 }
 
 bool Board::ShouldHighlightLastMove(int objectId)

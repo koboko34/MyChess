@@ -19,7 +19,6 @@ public:
 	PieceType GetType() const { return pieceType; }
 	int GetValue() const { return pieceValue; }
 
-	void SetPiece(PieceTeam newTeam, PieceType newType);
 	void DrawPiece();
 
 	bool bMoved;

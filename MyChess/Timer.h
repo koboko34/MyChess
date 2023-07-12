@@ -9,6 +9,8 @@ public:
 	{
 		start = std::chrono::high_resolution_clock::now();
 		this->name = name;
+
+		printf("%s timer started...\n", name.c_str());
 	}
 
 	~Timer()
