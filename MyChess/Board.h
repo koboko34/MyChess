@@ -168,10 +168,10 @@ private:
 
 	GLuint piecesTextureId;
 
-	Piece* pieces[64];
+	Piece pieces[64];
 	
 	PieceType promotionTypes[4] = { QUEEN, ROOK, BISHOP, KNIGHT };
-	std::unordered_map<int, Piece*> promotionPieces;
+	std::unordered_map<PieceType, Piece> promotionPieces;
 
 	glm::vec3 blackTileColor = glm::vec3(0.4f, 0.6f, 0.4f);
 	glm::vec3 whiteTileColor = glm::vec3(1.f, 1.f, 0.8f);
@@ -201,7 +201,7 @@ private:
 	bool bSetPromoSound;
 
 	PieceTeam currentTurn;
-	bool IsCurrentTurn(int index) const { return pieces[index]->GetTeam() == currentTurn; }
+	bool IsCurrentTurn(int index) const { return pieces[index].GetTeam() == currentTurn; }
 	void CompleteTurn();
 
 	std::vector<int> firstRank;
@@ -282,7 +282,7 @@ private:
 	void ClearEnPassant();
 	void TakeByEnPassant();
 	int lastEnPassantIndex;
-	Piece* enPassantOwner;
+	int enPassantOwner;
 
 	bool bChoosingPromotion;
 	int pieceToPromote;
@@ -314,7 +314,7 @@ private:
 	bool bInCheckWhite;
 	bool bInCheckBlack;
 	void CalculateCheck();
-	void ClearMoves(int team);
+	void ClearMoves(PieceTeam team);
 
 	struct CheckingPiece
 	{
@@ -356,15 +356,15 @@ private:
 	void ClearCheckingPieces();
 
 	bool CheckStalemate();
-	void GameOver(int winningTeam);
+	void GameOver(PieceTeam winningTeam);
 	void ShowWinnerMessage();
 	void SetupGame(bool bTest);
 
 	bool bGameOver;
-	int winner;
+	PieceTeam winner;
 
 	bool bVsComputer = false;
-	PieceTeam compTeam = BLACK;
+	PieceTeam compTeam;
 	void PlayCompMove();
 	void PlayCompMoveRandom();
 
@@ -378,7 +378,7 @@ private:
 
 	int CalcWhiteValue() const;
 	int CalcBlackValue() const;
-	int EvaluatePosition();
+	int EvaluatePosition() const;
 	int Search(const int ply, const int depth);
 	int CalcEval(const int depth);
 	const int DEPTH = 2;
