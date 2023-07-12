@@ -382,6 +382,7 @@ private:
 	int Search(const int ply, const int depth);
 	int CalcEval(const int depth);
 	const int DEPTH = 2;
+	bool bSearchEnd;
 
 };
 

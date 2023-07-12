@@ -34,6 +34,7 @@
     <ClInclude Include="PickingTexture.h" />
     <ClInclude Include="Piece.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="Timer.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

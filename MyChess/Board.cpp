@@ -6,7 +6,7 @@
 #include "Button.h"
 
 #ifdef TESTING
-#include <chrono>
+#include "Timer.h"
 #endif
 
 Board::Board()
@@ -849,8 +849,11 @@ bool Board::MovePiece(int startTile, int endTile)
 
 	if (!IsCurrentTurn(startTile))
 	{
-#ifdef RELEASE
-		printf("It is %s's move!\n", currentTurn == WHITE ? "white" : "black");
+#ifdef TESTING
+		if (!bTesting && !bSearching)
+		{
+			printf("It is %s's move!\n", currentTurn == WHITE ? "white" : "black");
+		}
 #endif
 		return false;
 	}
@@ -858,16 +861,22 @@ bool Board::MovePiece(int startTile, int endTile)
 	// check piece specific move
 	if (!CheckLegalMove(startTile, endTile))
 	{
-#ifdef RELEASE
-		printf("Not a legal move for this piece!\n");
+#ifdef TESTING
+		if (!bTesting && !bSearching)
+		{
+			printf("Not a legal move for this piece!\n");
+		}
 #endif
 		return false;
 	}
 
 	if (pieces[endTile] && pieces[startTile]->GetTeam() == pieces[endTile]->GetTeam())
 	{
-#ifdef RELEASE
-		printf("Cannot take your own team's piece!\n");
+#ifdef TESTING
+		if (!bTesting && !bSearching)
+		{
+			printf("Cannot take your own team's piece!\n");
+		}
 #endif
 		return false;
 	}
@@ -875,8 +884,11 @@ bool Board::MovePiece(int startTile, int endTile)
 	// check if move puts self in check by king moving into attacked square
 	if (pieces[startTile]->GetType() == KING && TileInContainer(endTile, pieces[startTile]->GetTeam() == WHITE ? attackSetBlack : attackSetWhite))
 	{
-#ifdef RELEASE
-		printf("Cannot put yourself in check!\n");
+#ifdef TESTING
+		if (!bTesting && !bSearching)
+		{
+			printf("Cannot put yourself in check!\n");
+		}
 #endif
 		return false;
 	}
@@ -886,8 +898,11 @@ bool Board::MovePiece(int startTile, int endTile)
 	{
 		if (!MoveBlocksCheck(startTile, endTile) && !(pieces[startTile]->GetType() == KING && KingEscapesCheck(endTile)) && !MoveTakesCheckingPiece(endTile))
 		{
-#ifdef RELEASE
-			printf("Move does not escape check!\n");
+#ifdef TESTING
+			if (!bTesting && !bSearching)
+			{
+				printf("Move does not escape check!\n");
+			}
 #endif
 			return false;
 		}
@@ -1416,7 +1431,7 @@ bool Board::BlockedByEnemyPiece(int startTile, int target) const
 }
 
 void Board::CompleteTurn()
-{
+{	
 	ClearEnPassant();
 	ClearPinnedPieces();
 
@@ -1430,6 +1445,12 @@ void Board::CompleteTurn()
 	}
 
 	currentTurn = currentTurn == WHITE ? BLACK : WHITE;
+
+	if (bSearching && bSearchEnd)
+	{
+		return;
+	}
+
 	CalculateMoves();
 
 	if (bGameOver)
@@ -1575,7 +1596,7 @@ void Board::HandlePromotion(int endTile)
 // ========================================== CHECK & CHECKMATE ==========================================
 
 void Board::CalculateMoves()
-{
+{	
 	attackSetWhite.clear();
 	attackSetBlack.clear();
 	ClearCheckingPieces();
@@ -1626,8 +1647,10 @@ void Board::CalculateMoves()
 		return;
 	}
 
-	if (!bSearching && !bTesting && !bGameOver && false)
+	if (!bSearching && !bTesting && !bGameOver)
 	{
+		Timer timer("Eval scope");
+		
 		int eval = CalcEval(DEPTH);
 		eval *= currentTurn == WHITE ? 1 : -1;
 		printf("%i vs. %i\n", CalcWhiteValue(), CalcBlackValue());
@@ -2324,6 +2347,9 @@ int Board::Search(const int ply, const int depth)
 				currentTurn == WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
 			}
 
+			// if next move reaches max depth, don't calculate further moves
+			ply == depth ? bSearchEnd = true : bSearchEnd = false;
+
 			// play move
 			MovePiece(startTile, move);
 
@@ -2390,6 +2416,7 @@ int Board::Search(const int ply, const int depth)
 
 int Board::CalcEval(const int depth)
 {
+	bSearchEnd = false;
 	bSearching = true;
 	int eval = Search(1, depth);
 	bSearching = false;
@@ -2569,7 +2596,7 @@ void Board::SetBestMoves(const std::vector<Move>& bestMoves)
 	}
 	
 	std::random_device rd;
-	std::uniform_int_distribution<int> moveList(0, bestMoves.size());
+	std::uniform_int_distribution<int> moveList(0, bestMoves.size() - 1);
 
 	int move = moveList(rd);
 	bestMoveStart = bestMoves[move].startTile;
