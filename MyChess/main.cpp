@@ -59,7 +59,7 @@ void PromotePiece(unsigned int objectId)
 
 void HandleBoardClick(int& clickedObjectId)
 {
-	if (clickedObjectId == -1 || !board.PieceExists(clickedObjectId))
+	if (clickedObjectId == -1 || !board.IsActivePiece(clickedObjectId))
 	{
 		clickedObjectId = pixel.objectId - 1;
 	}

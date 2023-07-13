@@ -39,7 +39,7 @@ public:
 
 	bool MovePiece(int startTile, int endTile);
 
-	bool PieceExists(int index);
+	bool IsActivePiece(int index) const { return pieces[index].GetTeam() != PieceTeam::NONE && pieces[index].GetType() != PieceType::NONE; }
 	bool IsChoosingPromotion() { return bChoosingPromotion; }
 	bool IsGameOver() { return bGameOver; }
 	bool InMainMenu() { return bInMainMenu; }
@@ -168,7 +168,7 @@ private:
 
 	GLuint piecesTextureId;
 
-	Piece* pieces[64];
+	Piece pieces[64];
 	
 	PieceType promotionTypes[4] = { QUEEN, ROOK, BISHOP, KNIGHT };
 	std::unordered_map<int, Piece*> promotionPieces;
@@ -184,7 +184,7 @@ private:
 
 	irrklang::ISoundEngine* soundEngine;
 
-	enum MoveSounds
+	enum class MoveSounds
 	{
 		NONE = 0,
 		MOVE_SELF = 1,
@@ -201,7 +201,7 @@ private:
 	bool bSetPromoSound;
 
 	PieceTeam currentTurn;
-	bool IsCurrentTurn(int index) const { return pieces[index]->GetTeam() == currentTurn; }
+	bool IsCurrentTurn(int index) const { return pieces[index].GetTeam() == currentTurn; }
 	void CompleteTurn();
 
 	std::vector<int> firstRank;
@@ -282,7 +282,7 @@ private:
 	void ClearEnPassant();
 	void TakeByEnPassant();
 	int lastEnPassantIndex;
-	Piece* enPassantOwner;
+	int enPassantOwner;
 
 	bool bChoosingPromotion;
 	int pieceToPromote;
@@ -340,7 +340,7 @@ private:
 	bool CanBlockCheck(int kingPos, int& moveCount);
 	bool KingEscapesCheck(int endTile);
 	bool CanKingEscape(int startTile, int& moveCount);
-	bool MoveTakesCheckingPiece(int endTile);
+	bool MoveTakesCheckingPiece(int endTile) const;
 	bool CanTakeCheckingPiece(int kingPos, int& moveCount);
 
 	std::vector<int> validCheckMoves[64];
@@ -378,7 +378,7 @@ private:
 
 	int CalcWhiteValue() const;
 	int CalcBlackValue() const;
-	int EvaluatePosition();
+	int EvaluatePosition() const;
 	int Search(const int ply, const int depth);
 	int CalcEval(const int depth);
 	const int DEPTH = 2;
