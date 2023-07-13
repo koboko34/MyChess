@@ -314,7 +314,7 @@ private:
 	bool bInCheckWhite;
 	bool bInCheckBlack;
 	void CalculateCheck();
-	void ClearMoves(int team);
+	void ClearMoves(PieceTeam team);
 
 	struct CheckingPiece
 	{
@@ -356,15 +356,15 @@ private:
 	void ClearCheckingPieces();
 
 	bool CheckStalemate();
-	void GameOver(int winningTeam);
+	void GameOver(PieceTeam winningTeam);
 	void ShowWinnerMessage();
 	void SetupGame(bool bTest);
 
 	bool bGameOver;
-	int winner;
+	PieceTeam winner;
 
 	bool bVsComputer = false;
-	PieceTeam compTeam = BLACK;
+	PieceTeam compTeam = PieceTeam::BLACK;
 	void PlayCompMove();
 	void PlayCompMoveRandom();
 
