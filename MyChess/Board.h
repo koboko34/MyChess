@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <random>
 #include <functional>
+#include <charconv>
 
 #include <GL/glew.h>
 
@@ -49,156 +50,17 @@ public:
 	void ButtonCallback(int id);
 	std::vector<Button*>& GetButtons() { return buttons; }
 
-private:
-
-	GLFWwindow* window;
-
-	unsigned int width, height;
-
-	void SetupBoard(glm::mat4 view, glm::mat4 projection);
-	void SetupPieces(glm::mat4 view, glm::mat4 projection);
-	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
-	void SetupPromotionPieces();
-	void SetupBoardFromFEN(const std::string fen);
-	void SetupFont();
-
-	bool ShouldHighlightSelectedObject(int selectedObjectId, int objectId);
-	bool ShouldHighlightLastMove(int objectId);
-
-	void RenderTiles(int selectedObjectId);
-	void RenderPieces();
-
-	void RenderPromotionTiles();
-	void RenderPromotionPieces();
-
-	std::vector<Button*> buttons;
-	void ClearButtons();
-	void RenderButton(Button* button);
-	void RenderButtons();
-
-	void RenderContinueButton();
-	float buttonHeight = 0.13f;
-	float buttonWidth = 0.35f;
-
-	bool bInMainMenu;
-	bool bInGame;
-	void ShowMenuButtons();
-
-	void PlaySingleplayerCallback();
-	void PlayWhiteCallback();
-	void PlayBlackCallback();
-	void PlayMultiplayerCallback();
-	void QuitGameCallback();
-	void ContinueCallback();
+protected:
+	irrklang::ISoundEngine* soundEngine;
 	
-	void EmptyFunction();
-	void ShannonTestCallback();
-	int ShannonTest(int ply, const int depth);
-	bool bTesting;
-
-	struct PieceMovedState
-	{
-		PieceMovedState(int tile, bool bMoved)
-		{
-			this->tile = tile;
-			this->bMoved = bMoved;
-		}
-
-		int tile;
-		bool bMoved;
-	};
-
-	std::string BoardToFEN();
-	void CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState);
-	void RecoverPieceMovedState(const std::vector<PieceMovedState> pieceMovedStates);
-
-	struct BoardState
-	{
-		BoardState(Board* board)
-		{
-			this->board = board;
-
-			fen = board->BoardToFEN();
-			board->CapturePieceMovedState(pieceMovedStates);
-			this->kingXRay = board->kingXRay;
-			turn = board->currentTurn;
-			bLocalCheckWhite = board->bInCheckWhite;
-			bLocalCheckBlack = board->bInCheckBlack;
-			this->lastMoveStart = board->lastMoveStart;
-			this->lastMoveEnd = board->lastMoveEnd;
-		}
-
-		~BoardState()
-		{
-
-		}
-		
-		Board* board;
-
-		std::string fen;
-		std::vector<PieceMovedState> pieceMovedStates;
-		std::set<int> kingXRay;
-		PieceTeam turn;
-		bool bLocalCheckWhite;
-		bool bLocalCheckBlack;
-		int lastMoveStart;
-		int lastMoveEnd;
-	};
-
-	void RecoverBoardState(BoardState* boardState);
-
-	Shader boardShader, pieceShader, pickingShader;
-	
-	GLfloat tileVertices[12] = {
-		 0.5f,  0.5f, 0.f,
-		 0.5f, -0.5f, 0.f,
-		-0.5f, -0.5f, 0.f,
-		-0.5f,  0.5f, 0.f
-	};
-
-	GLuint tileIndices[6] = {
-		0, 1, 3,
-		1, 2, 3
-	};
-
-	GLuint tileColorLocation, tileModelLocation, tileViewLocation, tileProjectionLocation;
-	GLuint pieceModelLocation, pieceViewLocation, pieceProjectionLocation;
-	GLuint pickingModelLocation, pickingViewLocation, pickingProjectionLocation, objectIdLocation, drawIdLocation;
-	GLuint VAO, EBO, VBO;
-
-	GLuint piecesTextureId;
-
 	Piece pieces[64];
-	
+
 	PieceType promotionTypes[4] = { QUEEN, ROOK, BISHOP, KNIGHT };
 	std::unordered_map<int, Piece*> promotionPieces;
-
-	glm::vec3 blackTileColor = glm::vec3(0.4f, 0.6f, 0.4f);
-	glm::vec3 whiteTileColor = glm::vec3(1.f, 1.f, 0.8f);
-	glm::vec3 selectColor = glm::vec3(1.f, 0.3f, 0.2f);
-	glm::vec3 lastMoveColor = glm::vec3(0.9f, 0.5f, 0.3f);
-
-	float tileSize = 0.13f;
-
-	float aspect;
-
-	irrklang::ISoundEngine* soundEngine;
-
-	enum class MoveSounds
-	{
-		NONE = 0,
-		MOVE_SELF = 1,
-		MOVE_OPP = 2,
-		CAPTURE = 3,
-		CHECK = 4,
-		CASTLE = 5,
-		CHECKMATE = 6,
-		PROMOTE = 7,
-	};
-
-	MoveSounds lastMoveSound;
-	void PlayMoveSound();
-	bool bSetPromoSound;
+	void SetupPromotionPieces();
+	
+	virtual void SetupBoardFromFEN(const std::string& fen);
+	std::string BoardToFEN();
 
 	PieceTeam currentTurn;
 	bool IsCurrentTurn(int index) const { return pieces[index].GetTeam() == currentTurn; }
@@ -226,9 +88,6 @@ private:
 		int topRight;
 		int bottomLeft;
 		int bottomRight;
-
-		void Print() { printf("Left: %i, Right: %i, Top: %i, Bottom: %i, TopLeft: %i, TopRight: %i, BottomLeft: %i, BottomRight: %i\n",
-							left, right, top, bottom, topLeft, topRight, bottomLeft, bottomRight); }
 	};
 
 	EdgesFromTile edgesFromTiles[64];
@@ -255,7 +114,7 @@ private:
 			startTile = start;
 			endTile = end;
 		}
-		
+
 		int startTile;
 		int endTile;
 	};
@@ -376,13 +235,104 @@ private:
 	int bestMoveEnd;
 	std::string ToBoard(const int tile) const;
 
+	virtual void HandleEval();
 	int CalcWhiteValue() const;
 	int CalcBlackValue() const;
-	int EvaluatePosition() const;
-	int Search(const int ply, const int depth);
 	int CalcEval(const int depth);
-	const int DEPTH = 2;
 	bool bSearchEnd;
 
+private:
+
+	GLFWwindow* window;
+
+	unsigned int width, height;
+
+	void SetupBoard(glm::mat4 view, glm::mat4 projection);
+	void SetupPieces(glm::mat4 view, glm::mat4 projection);
+	void SetupPickingShader(glm::mat4 view, glm::mat4 projection);
+	void SetupFont();
+
+	bool ShouldHighlightSelectedObject(int selectedObjectId, int objectId);
+	bool ShouldHighlightLastMove(int objectId);
+
+	void RenderTiles(int selectedObjectId);
+	void RenderPieces();
+
+	void RenderPromotionTiles();
+	void RenderPromotionPieces();
+
+	std::vector<Button*> buttons;
+	void ClearButtons();
+	void RenderButton(Button* button);
+	void RenderButtons();
+
+	void RenderContinueButton();
+	float buttonHeight = 0.13f;
+	float buttonWidth = 0.35f;
+
+	bool bInMainMenu;
+	bool bInGame;
+	void ShowMenuButtons();
+
+	void PlaySingleplayerCallback();
+	void PlayWhiteCallback();
+	void PlayBlackCallback();
+	void PlayMultiplayerCallback();
+	void QuitGameCallback();
+	void ContinueCallback();
+	
+	void EmptyFunction();
+
+	bool bTesting; // do I need this here anymore?
+
+	Shader boardShader, pieceShader, pickingShader;
+	
+	GLfloat tileVertices[12] = {
+		 0.5f,  0.5f, 0.f,
+		 0.5f, -0.5f, 0.f,
+		-0.5f, -0.5f, 0.f,
+		-0.5f,  0.5f, 0.f
+	};
+
+	GLuint tileIndices[6] = {
+		0, 1, 3,
+		1, 2, 3
+	};
+
+	GLuint tileColorLocation, tileModelLocation, tileViewLocation, tileProjectionLocation;
+	GLuint pieceModelLocation, pieceViewLocation, pieceProjectionLocation;
+	GLuint pickingModelLocation, pickingViewLocation, pickingProjectionLocation, objectIdLocation, drawIdLocation;
+	GLuint VAO, EBO, VBO;
+
+	GLuint piecesTextureId;
+
+	glm::vec3 blackTileColor = glm::vec3(0.4f, 0.6f, 0.4f);
+	glm::vec3 whiteTileColor = glm::vec3(1.f, 1.f, 0.8f);
+	glm::vec3 selectColor = glm::vec3(1.f, 0.3f, 0.2f);
+	glm::vec3 lastMoveColor = glm::vec3(0.9f, 0.5f, 0.3f);
+
+	float tileSize = 0.13f;
+
+	float aspect;
+
+	enum class MoveSounds
+	{
+		NONE = 0,
+		MOVE_SELF = 1,
+		MOVE_OPP = 2,
+		CAPTURE = 3,
+		CHECK = 4,
+		CASTLE = 5,
+		CHECKMATE = 6,
+		PROMOTE = 7,
+	};
+
+	MoveSounds lastMoveSound;
+	void PlayMoveSound();
+	bool bSetPromoSound;
+
+	const int DEPTH = 4;
+
+	class EvalBoard* evalBoard;
 };
 

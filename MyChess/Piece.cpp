@@ -22,10 +22,11 @@ Piece::~Piece()
 	}
 }
 
-void Piece::Init(PieceTeam team, PieceType type)
+void Piece::Init(PieceTeam team, PieceType type, bool bEvalPiece)
 {
 	pieceTeam = team;
 	pieceType = type;
+	this->bMoved = bEvalPiece;
 
 	switch (pieceType)
 	{
@@ -53,6 +54,11 @@ void Piece::Init(PieceTeam team, PieceType type)
 	default:
 		pieceValue = 0;
 		break;
+	}
+
+	if (bEvalPiece)
+	{
+		return;
 	}
 	
 	float offsetPixels = 1920.f / 6.f;
@@ -123,7 +129,7 @@ void Piece::SetPiece(PieceTeam newTeam, PieceType newType)
 		break;
 	}
 
-	if (pieceType == NONE || pieceTeam == PieceTeam::NONE)
+	if (bEvalPiece || pieceType == NONE || pieceTeam == PieceTeam::NONE)
 	{
 		return;
 	}

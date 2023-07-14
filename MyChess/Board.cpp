@@ -1,13 +1,14 @@
 #include "Board.h"
 
 #include <memory>
-#include <charconv>
 
 #include "Button.h"
 
 #ifdef TESTING
 #include "Timer.h"
 #endif
+
+#include "EvalBoard.h"
 
 Board::Board()
 {
@@ -45,6 +46,11 @@ Board::~Board()
 		delete promotionPieces[type];
 	}
 	promotionPieces.clear();
+
+	if (evalBoard)
+	{
+		delete evalBoard;
+	}
 }
 
 void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow* window, irrklang::ISoundEngine* sEngine)
@@ -70,12 +76,20 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 	SetupPickingShader(view, projection);
 	SetupPromotionPieces();
 
+	evalBoard = new EvalBoard();
+	if (evalBoard == nullptr)
+	{
+		printf("evalBoard is null!\n");
+	}
+	evalBoard->Init(soundEngine);
+
 	SetBoardCoords();
 	PrepEdges();
 	CalculateEdges();
 	SetupGame(false);
 
 	ShowMenuButtons();
+
 }
 
 // ========================================== RENDERING ==========================================
@@ -183,7 +197,7 @@ void Board::SetupPieces(glm::mat4 view, glm::mat4 projection)
 
 	for (int i = 0; i < 64; i++)
 	{
-		pieces[i].Init(PieceTeam::NONE, PieceType::NONE);
+		pieces[i].Init(PieceTeam::NONE, PieceType::NONE, false);
 	}
 }
 
@@ -210,7 +224,7 @@ void Board::SetupPromotionPieces()
 	for (PieceType type : promotionTypes)
 	{
 		Piece* piece = new Piece();
-		piece->Init(PieceTeam::WHITE, type);
+		piece->Init(PieceTeam::WHITE, type, false);
 		std::pair<int, Piece*> keyValPair(type, piece);
 		promotionPieces.insert(keyValPair);
 	}
@@ -529,7 +543,7 @@ void Board::ShowMenuButtons()
 
 #ifdef TESTING
 	Button* shannonTestButton = new Button(this, (float)width / 8 * 7, 0.f, 0.8f, (float)width / 8, 0.f, 0.15f);
-	shannonTestButton->SetCallback(std::bind(&Board::ShannonTestCallback, this));
+	shannonTestButton->SetCallback(std::bind(&EvalBoard::ShannonTestCallback, evalBoard));
 	buttons.push_back(shannonTestButton);
 #endif
 
@@ -618,219 +632,7 @@ void Board::ButtonCallback(int id)
 	}
 }
 
-#ifdef TESTING
-void Board::ShannonTestCallback()
-{
-	const int depth = 3;
-	int moveCount;
-	
-	bTesting = true;
-	soundEngine->setSoundVolume(0.f);
-
-	printf("\nStarting test suite at depth %i:\n", depth);
-
-	for (size_t currentDepth = 1; currentDepth <= depth; currentDepth++)
-	{
-		SetupGame(true);
-		int ply = 1;
-
-		auto start = std::chrono::high_resolution_clock::now();
-		moveCount = ShannonTest(ply, currentDepth);
-		auto end = std::chrono::high_resolution_clock::now();
-
-		std::chrono::duration<float> duration = end - start;
-
-		printf("Depth %i: %i possible moves. Calculated in: %f seconds.\n", currentDepth, moveCount, duration.count());
-	}
-
-	printf("Testing complete!\n");
-
-	bTesting = false;
-	soundEngine->setSoundVolume(1.f);
-}
-#endif
-
 // ========================================== TESTING ==========================================
-
-#ifdef TESTING
-int Board::ShannonTest(int ply, const int depth)
-{
-	int moveCount = 0;
-
-	if (ply > depth || bGameOver)
-	{
-		return 1;
-	}
-
-	// save current board state (locations and whether piece moved for castling etc)
-	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
-
-	std::vector<int> attackMap[64];
-	if (currentTurn == PieceTeam::WHITE)
-	{
-		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
-	}
-	else
-	{
-		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
-	}
-
-	// for each move
-	for (size_t startTile = 0; startTile < 64; startTile++)
-	{
-		std::vector<int> movesFound;
-		
-		if (!IsActivePiece(startTile) || pieces[startTile].GetTeam() != currentTurn || attackMap[startTile].empty())
-			continue;
-
-		for (int move : attackMap[startTile])
-		{
-			if (TileInContainer(move, movesFound))
-			{
-				printf("MOVE ALREADY IN CONTAINER! FOUND MORE THAN ONCE!\n");
-			}
-			movesFound.push_back(move);
-			
-			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
-			currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
-			for (int tileMove : attackMap[startTile])
-			{
-				currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
-			}
-
-			// play move
-			MovePiece(startTile, move);
-
-			// calc deeper moves with recursion and add
-			moveCount += ShannonTest(ply + 1, depth);
-
-			// undo move by restoring board state
-			RecoverBoardState(boardState.get());
-		}
-	}
-
-	return moveCount;
-}
-#endif
-
-std::string Board::BoardToFEN()
-{
-	std::string fen;
-	std::string fenChar = "";
-	int length = 0;
-	int spaces = 0;
-
-	for (const Piece& piece : pieces)
-	{
-		if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
-		{
-			fen.append("/");
-			spaces = 0;
-		}
-
-		if (piece.GetTeam() == PieceTeam::NONE || piece.GetType() == PieceType::NONE)
-		{
-			spaces++;
-			if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
-			{
-				fenChar = std::to_string(spaces);
-				fen.append(fenChar);
-				length += spaces;
-				spaces = 0;
-			}
-			continue;
-		}
-
-		if (spaces != 0)
-		{
-			fenChar = std::to_string(spaces);
-			fen.append(fenChar);
-			length += spaces;
-			spaces = 0;
-		}
-
-		if ((length + spaces) % 8 == 0 && (length + spaces) != 0 && fen.back() != '/')
-		{
-			fen.append("/");
-			spaces = 0;
-		}
-
-		switch (piece.GetType())
-		{
-		case KING:
-			fenChar = "k";
-			break;
-		case QUEEN:
-			fenChar = "q";
-			break;
-		case BISHOP:
-			fenChar = "b";
-			break;
-		case KNIGHT:
-			fenChar = "n";
-			break;
-		case ROOK:
-			fenChar = "r";
-			break;
-		case PAWN:
-			fenChar = "p";
-			break;
-		case EN_PASSANT:
-			fenChar = "e";
-			break;
-		}
-
-		if (piece.GetTeam() == PieceTeam::WHITE)
-		{
-			for (char c : fenChar)
-			{
-				fenChar = std::string(1, (char)toupper(c));
-				break;
-			}
-		}
-
-		fen.append(fenChar);
-		length++;
-	}
-
-	return fen;
-}
-
-void Board::RecoverPieceMovedState(const std::vector<PieceMovedState> pieceMovedStates)
-{
-	for (PieceMovedState boardState : pieceMovedStates)
-	{
-		pieces[boardState.tile].bMoved = boardState.bMoved;
-	}
-}
-
-void Board::CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState)
-{
-	for (size_t i = 0; i < 64; i++)
-	{
-		if (!IsActivePiece(i))
-			continue;
-
-		if (pieces[i].GetType() == PAWN || pieces[i].GetType() == ROOK || pieces[i].GetType() == KING)
-		{
-			PieceMovedState state = PieceMovedState(i, pieces[i].bMoved);
-			pieceMovedState.push_back(state);
-		}
-	}
-}
-
-void Board::RecoverBoardState(BoardState* boardState)
-{
-	SetupBoardFromFEN(boardState->fen);
-	RecoverPieceMovedState(boardState->pieceMovedStates);
-	ClearPinnedPieces();
-	currentTurn = boardState->turn;
-	bGameOver = false;
-	bInCheckWhite = boardState->bLocalCheckWhite;
-	bInCheckBlack = boardState->bLocalCheckBlack;
-	lastMoveStart = boardState->lastMoveStart;
-	lastMoveEnd = boardState->lastMoveEnd;
-}
 
 // ========================================== MOVE LOGIC ==========================================
 
@@ -1632,15 +1434,7 @@ void Board::CalculateMoves()
 
 	if (!bSearching && !bTesting && !bGameOver)
 	{
-#ifdef TESTING
-		Timer timer("Eval scope");
-#endif
-
-		int eval = CalcEval(DEPTH);
-		eval *= currentTurn == PieceTeam::WHITE ? 1 : -1;
-		printf("%i vs. %i\n", CalcWhiteValue(), CalcBlackValue());
-		printf("Eval: %i %s\n", eval, currentTurn == PieceTeam::WHITE ? "WHITE" : "BLACK");
-		printf("Best move: %s %s\n", ToBoard(bestMoveStart).c_str(), ToBoard(bestMoveEnd).c_str());
+		HandleEval();
 	}
 }
 
@@ -2241,170 +2035,20 @@ void Board::SetupGame(bool bTest)
 	CalcEval(DEPTH);
 }
 
-int Board::CalcWhiteValue() const
+void Board::HandleEval()
 {
-	int teamVal = 0;
-
-	for (const Piece& piece : pieces)
-	{
-		if (piece.GetTeam() == PieceTeam::WHITE && piece.GetType() != EN_PASSANT)
-		{
-			teamVal += piece.GetValue();
-		}
-	}
-
-	return teamVal;
-}
-
-int Board::CalcBlackValue() const
-{
-	int teamVal = 0;
-
-	for (const Piece& piece : pieces)
-	{
-		if (piece.GetTeam() == PieceTeam::BLACK && piece.GetType() != EN_PASSANT)
-		{
-			teamVal += piece.GetValue();
-		}
-	}
-
-	return teamVal;
-}
-
-int Board::EvaluatePosition() const
-{
-	int eval = CalcWhiteValue() - CalcBlackValue();
-	int perspective = currentTurn == PieceTeam::WHITE ? 1 : -1;
-
-	return eval * perspective;
-}
-
-int Board::Search(const int ply, const int depth)
-{
-	int eval = 0;
-	
-	if (ply > depth)
-	{
-		return eval = EvaluatePosition();
-	}
-
-	int bestEval = -999;
-
-	std::vector<Move> bestMoves;
-
-	// save current board state (locations, whether piece moved for castling etc)
-	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
-
-	std::vector<int> attackMap[64];
-	if (currentTurn == PieceTeam::WHITE)
-	{
-		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
-	}
-	else
-	{
-		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
-	}
-
-	std::vector<CheckingPiece> checkingPieces = currentTurn == PieceTeam::WHITE ? checkingPiecesBlack : checkingPiecesWhite;
-
-	// for each move
-	for (size_t startTile = 0; startTile < 64; startTile++)
-	{
-		std::vector<int> movesFound;
-
-		if (!IsActivePiece(startTile) || pieces[startTile].GetTeam() != currentTurn || attackMap[startTile].empty())
-			continue;
-
-		for (int move : attackMap[startTile])
-		{
-#ifdef TESTING
-			if (TileInContainer(move, movesFound))
-			{
-				printf("MOVE ALREADY IN CONTAINER! FOUND MORE THAN ONCE!\n");
-			}
-#endif
-			movesFound.push_back(move);
-
-			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
-			currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
-			for (int tileMove : attackMap[startTile])
-			{
-				currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
-			}
-
-			// if next move reaches max depth, don't calculate further moves
-			ply == depth ? bSearchEnd = true : bSearchEnd = false;
-
-			// play move
-			MovePiece(startTile, move);
-
-			// calc deeper moves with recursion and add
-			eval = -Search(ply + 1, depth);
-
-			if (eval > bestEval && ply == 1)
-			{
-				bestEval = eval;
-				bestMoves.clear();
-				bestMoves.emplace(bestMoves.end(), startTile, move);
-			}
-			else if (eval == bestEval && ply == 1)
-			{
-				bestMoves.emplace(bestMoves.end(), startTile, move);
-			}
-			else if (eval >= bestEval)
-			{
-				bestEval = eval;
-			}
-
-			// undo move by restoring board state
-			RecoverBoardState(boardState.get());
-			if (currentTurn == PieceTeam::WHITE)
-			{
-				checkingPiecesBlack = checkingPieces;
-			}
-			else
-			{
-				checkingPiecesWhite = checkingPieces;
-			}
-		}
-
-		// restore attackMap, recovering from cache rather than calculating again
-		if (currentTurn == PieceTeam::WHITE)
-		{
-			std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapWhite));
-		}
-		else
-		{
-			std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapBlack));
-		}
-
-		if (movesFound.empty())
-		{
-			if ((currentTurn == PieceTeam::WHITE && bInCheckWhite) || (currentTurn == PieceTeam::BLACK && bInCheckBlack))
-			{
-				return -999; // nothing is worse than checkmate
-			}
-			else
-			{
-				return 0; // stalemate
-			}
-		}
-	}
-
-	if (ply == 1)
-	{
-		SetBestMoves(bestMoves);
-	}
-
-	return bestEval;
+	evalBoard->SetFEN(BoardToFEN());
+	evalBoard->SetCurrentTurn(currentTurn);
+	// evalBoard->StartEval(DEPTH);
 }
 
 int Board::CalcEval(const int depth)
 {
-	bSearchEnd = false;
-	bSearching = true;
-	int eval = Search(1, depth);
-	bSearching = false;
+	int eval = 0;
+	// bSearchEnd = false;
+	// bSearching = true;
+	// int eval = Search(1, depth);
+	// bSearching = false;
 	return eval;
 }
 
@@ -2678,6 +2322,36 @@ void Board::CalculateEdges()
 	}
 }
 
+int Board::CalcWhiteValue() const
+{
+	int teamVal = 0;
+
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (pieces[i].GetTeam() == PieceTeam::WHITE && pieces[i].GetType() != EN_PASSANT)
+		{
+			teamVal += pieces[i].GetValue();
+		}
+	}
+
+	return teamVal;
+}
+
+int Board::CalcBlackValue() const
+{
+	int teamVal = 0;
+
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (pieces[i].GetTeam() == PieceTeam::BLACK && pieces[i].GetType() != EN_PASSANT)
+		{
+			teamVal += pieces[i].GetValue();
+		}
+	}
+
+	return teamVal;
+}
+
 void Board::Promote(PieceType pieceType)
 {
 	printf("Promoting a piece...\n");
@@ -2718,7 +2392,7 @@ void Board::ShowWinnerMessage()
 	}
 }
 
-void Board::SetupBoardFromFEN(const std::string fen)
+void Board::SetupBoardFromFEN(const std::string& fen)
 {
 	for (size_t i = 0; i < 64; i++)
 	{
@@ -2805,6 +2479,89 @@ void Board::SetupBoardFromFEN(const std::string fen)
 		}
 	}
 	lastEnPassantIndex = -1;
+}
+
+std::string Board::BoardToFEN()
+{
+	std::string fen;
+	std::string fenChar = "";
+	int length = 0;
+	int spaces = 0;
+
+	for (size_t i = 0; i < 64; i++)
+	{
+		if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
+		{
+			fen.append("/");
+			spaces = 0;
+		}
+
+		if (pieces[i].GetTeam() == PieceTeam::NONE || pieces[i].GetType() == PieceType::NONE)
+		{
+			spaces++;
+			if ((length + spaces) % 8 == 0 && (length + spaces) != 0)
+			{
+				fenChar = std::to_string(spaces);
+				fen.append(fenChar);
+				length += spaces;
+				spaces = 0;
+			}
+			continue;
+		}
+
+		if (spaces != 0)
+		{
+			fenChar = std::to_string(spaces);
+			fen.append(fenChar);
+			length += spaces;
+			spaces = 0;
+		}
+
+		if ((length + spaces) % 8 == 0 && (length + spaces) != 0 && fen.back() != '/')
+		{
+			fen.append("/");
+			spaces = 0;
+		}
+
+		switch (pieces[i].GetType())
+		{
+		case KING:
+			fenChar = "k";
+			break;
+		case QUEEN:
+			fenChar = "q";
+			break;
+		case BISHOP:
+			fenChar = "b";
+			break;
+		case KNIGHT:
+			fenChar = "n";
+			break;
+		case ROOK:
+			fenChar = "r";
+			break;
+		case PAWN:
+			fenChar = "p";
+			break;
+		case EN_PASSANT:
+			fenChar = "e";
+			break;
+		}
+
+		if (pieces[i].GetTeam() == PieceTeam::WHITE)
+		{
+			for (char c : fenChar)
+			{
+				fenChar = std::string(1, (char)toupper(c));
+				break;
+			}
+		}
+
+		fen.append(fenChar);
+		length++;
+	}
+
+	return fen;
 }
 
 void Board::SetBoardCoords()

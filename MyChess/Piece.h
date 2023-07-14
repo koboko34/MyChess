@@ -18,23 +18,25 @@ public:
 	Piece(const Piece&) = delete;
 	Piece& operator= (const Piece&) = delete;
 
-	void Init(PieceTeam team, PieceType type);
+	virtual void Init(PieceTeam team, PieceType type, bool bEvalPiece);
 
 	PieceTeam GetTeam() const { return pieceTeam; }
 	PieceType GetType() const { return pieceType; }
 	int GetValue() const { return pieceValue; }
 
-	void SetPiece(PieceTeam newTeam, PieceType newType);
+	virtual void SetPiece(PieceTeam newTeam, PieceType newType);
 	void ClearPiece();
 	void DrawPiece();
 
 	bool bMoved;
 
-private:
+protected:
 	PieceTeam pieceTeam;
 	PieceType pieceType;
 	int pieceValue;
+	bool bEvalPiece;
 
+private:
 	GLuint VAO, EBO, VBO;
 
 };
