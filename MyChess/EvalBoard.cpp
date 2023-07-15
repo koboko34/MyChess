@@ -44,8 +44,9 @@ void EvalBoard::StartEval(const int depth)
 {
 	maxDepth = depth;
 
-	evalThread.~thread();
+	// evalThread.~thread();
 	evalThread = std::thread([this] { this->IterSearch(); });
+	printf("TEST\n");
 }
 
 void EvalBoard::StopEval()

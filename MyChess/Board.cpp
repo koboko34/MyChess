@@ -2037,9 +2037,10 @@ void Board::SetupGame(bool bTest)
 
 void Board::HandleEval()
 {
+	evalBoard->StopEval();
 	evalBoard->SetFEN(BoardToFEN());
 	evalBoard->SetCurrentTurn(currentTurn);
-	// evalBoard->StartEval(DEPTH);
+	evalBoard->StartEval(DEPTH);
 }
 
 int Board::CalcEval(const int depth)
