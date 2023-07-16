@@ -20,13 +20,14 @@ public:
 
 	int GetEval() const { return eval; }
 
-	void IterSearch();
+	void IterDeepSearch();
 
 	void ShannonTestCallback();
 
 private:
 	bool bTesting;
 	bool bShouldSearch;
+	bool bEarlyExit;
 	int eval;
 	int maxDepth;
 

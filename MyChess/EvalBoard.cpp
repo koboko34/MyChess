@@ -42,11 +42,17 @@ void EvalBoard::Init(irrklang::ISoundEngine* engine)
 
 void EvalBoard::StartEval(const int depth)
 {
+	using namespace std::literals::chrono_literals;
+
+	while (bSearching)
+	{
+		bShouldSearch = false;
+		std::this_thread::sleep_for(10ms);
+	}
+	
 	maxDepth = depth;
 
-	// evalThread.~thread();
-	evalThread = std::thread([this] { this->IterSearch(); });
-	printf("TEST\n");
+	std::thread([this] { this->IterDeepSearch(); }).detach();
 }
 
 void EvalBoard::StopEval()
@@ -179,95 +185,6 @@ void EvalBoard::RecoverBoardState(BoardState* boardState)
 	lastMoveEnd = boardState->lastMoveEnd;
 }
 
-//void EvalBoard::SetupBoardFromFEN(const std::string& fen)
-//{
-//	for (size_t i = 0; i < 64; i++)
-//	{
-//		if (!IsActivePiece(i))
-//			continue;
-//
-//		pieces[i].ClearPiece();
-//	}
-//
-//	int index = 0;
-//	PieceTeam team;
-//
-//	for (char c : fen)
-//	{
-//		// if letter, place piece
-//		if (isalpha(c))
-//		{
-//			if (islower(c))
-//			{
-//				team = PieceTeam::BLACK;
-//			}
-//			else
-//			{
-//				team = PieceTeam::WHITE;
-//			}
-//
-//			switch (tolower(c))
-//			{
-//			case 'r':
-//				pieces[index].SetPiece(team, ROOK);
-//				pieces[index].bMoved = false;
-//				index++;
-//				continue;
-//			case 'n':
-//				pieces[index].SetPiece(team, KNIGHT);
-//				pieces[index].bMoved = false;
-//				index++;
-//				continue;
-//			case 'b':
-//				pieces[index].SetPiece(team, BISHOP);
-//				pieces[index].bMoved = false;
-//				index++;
-//				continue;
-//			case 'q':
-//				pieces[index].SetPiece(team, QUEEN);
-//				pieces[index].bMoved = false;
-//				index++;
-//				continue;
-//			case 'k':
-//				pieces[index].SetPiece(team, KING);
-//				pieces[index].bMoved = false;
-//				index++;
-//				continue;
-//			case 'p':
-//				pieces[index].SetPiece(team, PAWN);
-//				pieces[index].bMoved = false;
-//				index++;
-//				continue;
-//			case 'e':
-//				pieces[index].SetPiece(team, EN_PASSANT);
-//				lastEnPassantIndex = index;
-//				index++;
-//				continue;
-//			}
-//		}
-//
-//		// if number, traverse board
-//		if (isdigit(c))
-//		{
-//			int moveDistance = c - '0';
-//			index += moveDistance;
-//		}
-//	}
-//
-//	if (InMapRange(lastEnPassantIndex) && IsActivePiece(lastEnPassantIndex))
-//	{
-//		if (pieces[lastEnPassantIndex].GetTeam() == PieceTeam::WHITE)
-//		{
-//			enPassantOwner = lastEnPassantIndex - 8;
-//		}
-//		else if (pieces[lastEnPassantIndex].GetTeam() == PieceTeam::BLACK)
-//		{
-//			enPassantOwner = lastEnPassantIndex + 8;
-//		}
-//	}
-//	lastEnPassantIndex = -1;
-//}
-
 int EvalBoard::EvaluatePosition() const
 {
 	int eval = CalcWhiteValue() - CalcBlackValue();
@@ -312,6 +229,12 @@ int EvalBoard::Search(const int ply, const int depth)
 	// for each move
 	for (size_t startTile = 0; startTile < 64; startTile++)
 	{
+		if (!bShouldSearch)
+		{
+			bEarlyExit = true;
+			return -1;
+		}
+		
 		std::vector<int> movesFound;
 
 		if (!IsActivePiece(startTile) || pieces[startTile].GetTeam() != currentTurn || attackMap[startTile].empty())
@@ -401,22 +324,36 @@ int EvalBoard::Search(const int ply, const int depth)
 	return bestEval;
 }
 
-void EvalBoard::IterSearch()
+void EvalBoard::IterDeepSearch()
 {
 	bShouldSearch = true;
 	bSearching = true;
 	SetupBoardFromFEN(fen);
 	CalculateMoves();
 	
+	bEarlyExit = false;
 	int depth = 1;
 	while (depth <= maxDepth && bShouldSearch)
 	{
-		printf("Calculating eval at depth %i...\n", depth);
+		printf("\nCalculating eval at depth %i...\n", depth);
 		int eval = Search(1, depth);
+		if (bEarlyExit)
+		{
+			break;
+		}
 		printf("Depth %i, Eval: %i %s\n", depth, eval, currentTurn == PieceTeam::WHITE ? "WHITE" : "BLACK");
+		printf("Best move: %s %s\n", ToBoard(bestMoveStart).c_str(), ToBoard(bestMoveEnd).c_str());
 		depth++;
 	}
-	printf("Search done!\n");
+
+	if (bEarlyExit)
+	{
+		printf("Search cancelled!\n");
+	}
+	else
+	{
+		printf("Search done!\n");
+	}
 
 	bSearching = false;
 	bShouldSearch = false;

@@ -331,7 +331,7 @@ private:
 	void PlayMoveSound();
 	bool bSetPromoSound;
 
-	const int DEPTH = 1;
+	const int DEPTH = 5;
 
 	class EvalBoard* evalBoard;
 };
