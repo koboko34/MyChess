@@ -23,16 +23,25 @@ EvalBoard::EvalBoard()
 
 EvalBoard::~EvalBoard()
 {
+	bShouldSearch = false;
+	
 	for (PieceType type : promotionTypes)
 	{
 		delete promotionPieces[type];
 	}
 	promotionPieces.clear();
+
+	while (bSearching)
+	{
+		using namespace std::literals::chrono_literals;
+		std::this_thread::sleep_for(5ms);
+	}
 }
 
-void EvalBoard::Init(irrklang::ISoundEngine* engine)
+void EvalBoard::Init(Board* newBoard, irrklang::ISoundEngine* engine)
 {
 	soundEngine = engine;
+	board = newBoard;
 
 	SetupPromotionPieces();
 	SetBoardCoords();
@@ -47,10 +56,11 @@ void EvalBoard::StartEval(const int depth)
 	while (bSearching)
 	{
 		bShouldSearch = false;
-		std::this_thread::sleep_for(10ms);
+		std::this_thread::sleep_for(5ms);
 	}
 	
 	maxDepth = depth;
+	currentTurn = board->GetCurrentTurn();
 
 	std::thread([this] { this->IterDeepSearch(); }).detach();
 }

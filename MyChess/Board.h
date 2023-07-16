@@ -49,6 +49,7 @@ public:
 
 	void ButtonCallback(int id);
 	std::vector<Button*>& GetButtons() { return buttons; }
+	PieceTeam GetCurrentTurn() const { return currentTurn; }
 
 protected:
 	irrklang::ISoundEngine* soundEngine;
@@ -238,7 +239,6 @@ protected:
 	virtual void HandleEval();
 	int CalcWhiteValue() const;
 	int CalcBlackValue() const;
-	int CalcEval(const int depth);
 	bool bSearchEnd;
 
 private:

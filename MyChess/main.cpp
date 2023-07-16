@@ -12,7 +12,7 @@
 
 #include "CommonValues.h"
 
-#include "board.h"
+#include "Board.h"
 #include "Window.h"
 #include "Shader.h"
 #include "PickingTexture.h"

@@ -10,7 +10,7 @@ public:
 	EvalBoard();
 	~EvalBoard();
 
-	void Init(irrklang::ISoundEngine* engine);
+	void Init(Board* newBoard, irrklang::ISoundEngine* engine);
 
 	void StartEval(const int depth);
 	void StopEval();
@@ -25,6 +25,8 @@ public:
 	void ShannonTestCallback();
 
 private:
+	Board* board;
+	
 	bool bTesting;
 	bool bShouldSearch;
 	bool bEarlyExit;

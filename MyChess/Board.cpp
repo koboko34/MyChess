@@ -81,7 +81,7 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 	{
 		printf("evalBoard is null!\n");
 	}
-	evalBoard->Init(soundEngine);
+	evalBoard->Init(this, soundEngine);
 
 	SetBoardCoords();
 	PrepEdges();
@@ -89,7 +89,6 @@ void Board::Init(unsigned int windowWidth, unsigned int windowHeight, GLFWwindow
 	SetupGame(false);
 
 	ShowMenuButtons();
-
 }
 
 // ========================================== RENDERING ==========================================
@@ -1432,7 +1431,7 @@ void Board::CalculateMoves()
 		return;
 	}
 
-	if (!bSearching && !bTesting && !bGameOver)
+	if (bInGame && !bSearching && !bTesting && !bGameOver)
 	{
 		HandleEval();
 	}
@@ -2031,26 +2030,13 @@ void Board::SetupGame(bool bTest)
 	SetupBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 	FindKings();
 	CalculateMoves();
-
-	CalcEval(DEPTH);
 }
 
 void Board::HandleEval()
 {
 	evalBoard->StopEval();
 	evalBoard->SetFEN(BoardToFEN());
-	evalBoard->SetCurrentTurn(currentTurn);
 	evalBoard->StartEval(DEPTH);
-}
-
-int Board::CalcEval(const int depth)
-{
-	int eval = 0;
-	// bSearchEnd = false;
-	// bSearching = true;
-	// int eval = Search(1, depth);
-	// bSearching = false;
-	return eval;
 }
 
 void Board::PlayCompMove()
