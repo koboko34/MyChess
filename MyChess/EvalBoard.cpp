@@ -71,7 +71,7 @@ void EvalBoard::StopEval()
 }
 
 void EvalBoard::ShannonTestCallback()
-{
+{	
 	const int depth = 3;
 	int moveCount;
 
@@ -100,7 +100,7 @@ void EvalBoard::ShannonTestCallback()
 	soundEngine->setSoundVolume(1.f);
 }
 
-int EvalBoard::ShannonTest(int ply, const int depth)
+int EvalBoard::ShannonTest(const int ply, const int depth)
 {
 	int moveCount = 0;
 
@@ -121,6 +121,8 @@ int EvalBoard::ShannonTest(int ply, const int depth)
 	{
 		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
 	}
+
+	std::vector<CheckingPiece> checkingPieces = currentTurn == PieceTeam::WHITE ? checkingPiecesBlack : checkingPiecesWhite;
 
 	// for each move
 	for (size_t startTile = 0; startTile < 64; startTile++)
@@ -145,6 +147,9 @@ int EvalBoard::ShannonTest(int ply, const int depth)
 				currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
 			}
 
+			// if next move reaches max depth, don't calculate further moves
+			ply == depth ? bSearchEnd = true : bSearchEnd = false;
+
 			// play move
 			MovePiece(startTile, move);
 
@@ -153,6 +158,24 @@ int EvalBoard::ShannonTest(int ply, const int depth)
 
 			// undo move by restoring board state
 			RecoverBoardState(boardState.get());
+			if (currentTurn == PieceTeam::WHITE)
+			{
+				checkingPiecesBlack = checkingPieces;
+			}
+			else
+			{
+				checkingPiecesWhite = checkingPieces;
+			}
+
+			// restore attackMap, recovering from cache rather than calculating again
+			if (currentTurn == PieceTeam::WHITE)
+			{
+				std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapWhite));
+			}
+			else
+			{
+				std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapBlack));
+			}
 		}
 	}
 
@@ -301,16 +324,16 @@ int EvalBoard::Search(const int ply, const int depth)
 			{
 				checkingPiecesWhite = checkingPieces;
 			}
-		}
-
-		// restore attackMap, recovering from cache rather than calculating again
-		if (currentTurn == PieceTeam::WHITE)
-		{
-			std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapWhite));
-		}
-		else
-		{
-			std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapBlack));
+			
+			// restore attackMap, recovering from cache rather than calculating again
+			if (currentTurn == PieceTeam::WHITE)
+			{
+				std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapWhite));
+			}
+			else
+			{
+				std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapBlack));
+			}
 		}
 
 		if (movesFound.empty())

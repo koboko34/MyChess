@@ -81,14 +81,10 @@ private:
 
 	void RecoverBoardState(BoardState* boardState);
 
-	int ShannonTest(int ply, const int depth);
-
-	// virtual void SetupBoardFromFEN(const std::string& fen) override;
+	int ShannonTest(const int ply, const int depth);
 
 	virtual void HandleEval() override;
 	int EvaluatePosition() const;
 	int Search(const int ply, const int depth);
-
-	std::thread evalThread;
 };
 
