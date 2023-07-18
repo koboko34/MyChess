@@ -1252,7 +1252,7 @@ void Board::CompleteTurn()
 
 	if (bVsComputer && currentTurn == compTeam && !bTesting && !bSearching)
 	{
-		PlayCompMove();
+		std::thread([this] {this->PlayCompMove(); }).detach();
 	}
 }
 
@@ -2041,7 +2041,17 @@ void Board::HandleEval()
 
 void Board::PlayCompMove()
 {
-	if (!MovePiece(bestMoveStart, bestMoveEnd))
+	using namespace std::literals::chrono_literals;
+	
+	std::this_thread::sleep_for(1s);
+	evalBoard->StopEval();
+
+	while (evalBoard->IsSearching())
+	{
+		std::this_thread::sleep_for(5ms);
+	}
+	
+	if (!MovePiece(evalBoard->bestMoveStart, evalBoard->bestMoveEnd))
 	{
 		printf("Computer cannot make optimal move from search!\n");
 	}

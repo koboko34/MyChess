@@ -72,6 +72,7 @@ void EvalBoard::StopEval()
 
 void EvalBoard::ShannonTestCallback()
 {	
+	Timer timer("ShannonTest()");
 	const int depth = 3;
 	int moveCount;
 
@@ -237,7 +238,7 @@ int EvalBoard::Search(const int ply, const int depth)
 
 	if (ply > depth)
 	{
-		return eval = EvaluatePosition();
+		return SearchAllCaptures();
 	}
 
 	int bestEval = -999;
@@ -258,6 +259,7 @@ int EvalBoard::Search(const int ply, const int depth)
 	}
 
 	std::vector<CheckingPiece> checkingPieces = currentTurn == PieceTeam::WHITE ? checkingPiecesBlack : checkingPiecesWhite;
+	std::vector<int> movesFound;
 
 	// for each move
 	for (size_t startTile = 0; startTile < 64; startTile++)
@@ -268,19 +270,11 @@ int EvalBoard::Search(const int ply, const int depth)
 			return -1;
 		}
 		
-		std::vector<int> movesFound;
-
 		if (!IsActivePiece(startTile) || pieces[startTile].GetTeam() != currentTurn || attackMap[startTile].empty())
 			continue;
 
 		for (int move : attackMap[startTile])
 		{
-#ifdef TESTING
-			if (TileInContainer(move, movesFound))
-			{
-				printf("MOVE ALREADY IN CONTAINER! FOUND MORE THAN ONCE!\n");
-			}
-#endif
 			movesFound.push_back(move);
 
 			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
@@ -289,9 +283,6 @@ int EvalBoard::Search(const int ply, const int depth)
 			{
 				currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
 			}
-
-			// if next move reaches max depth, don't calculate further moves
-			ply == depth ? bSearchEnd = true : bSearchEnd = false;
 
 			// play move
 			MovePiece(startTile, move);
@@ -335,23 +326,119 @@ int EvalBoard::Search(const int ply, const int depth)
 				std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapBlack));
 			}
 		}
-
-		if (movesFound.empty())
-		{
-			if ((currentTurn == PieceTeam::WHITE && bInCheckWhite) || (currentTurn == PieceTeam::BLACK && bInCheckBlack))
-			{
-				return -999; // nothing is worse than checkmate
-			}
-			else
-			{
-				return 0; // stalemate
-			}
-		}
 	}
 
 	if (ply == 1)
 	{
 		SetBestMoves(bestMoves);
+	}
+
+	if (movesFound.empty())
+	{
+		if ((currentTurn == PieceTeam::WHITE && bInCheckWhite) || (currentTurn == PieceTeam::BLACK && bInCheckBlack))
+		{
+			return -999; // nothing is worse than checkmate
+		}
+		else
+		{
+			return 0; // stalemate
+		}
+	}
+
+	return bestEval;
+}
+
+int EvalBoard::SearchAllCaptures()
+{
+	int eval = 0;
+	int bestEval = -999;
+	bool bCaptureFound = false;
+
+	// save current board state (locations, whether piece moved for castling etc)
+	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
+
+	std::vector<int> attackMap[64];
+	if (currentTurn == PieceTeam::WHITE)
+	{
+		std::copy(std::begin(attackMapWhite), std::end(attackMapWhite), std::begin(attackMap));
+	}
+	else
+	{
+		std::copy(std::begin(attackMapBlack), std::end(attackMapBlack), std::begin(attackMap));
+	}
+
+	std::vector<CheckingPiece> checkingPieces = currentTurn == PieceTeam::WHITE ? checkingPiecesBlack : checkingPiecesWhite;
+	std::vector<int> movesFound;
+
+	// for each move
+	for (size_t startTile = 0; startTile < 64; startTile++)
+	{
+		if (!bShouldSearch)
+		{
+			bEarlyExit = true;
+			return -1;
+		}
+
+		if (!IsActivePiece(startTile) || pieces[startTile].GetTeam() != currentTurn || attackMap[startTile].empty())
+			continue;
+
+		for (int move : attackMap[startTile])
+		{
+			if (!IsActivePiece(move))
+			{
+				continue;
+			}
+
+			movesFound.push_back(move);
+
+			// since CompleteTurn() wipes attack maps, copy the relevant attack map entry so that checks can be carried out
+			currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].clear() : attackMapBlack[startTile].clear();
+			for (int tileMove : attackMap[startTile])
+			{
+				currentTurn == PieceTeam::WHITE ? attackMapWhite[startTile].push_back(tileMove) : attackMapBlack[startTile].push_back(tileMove);
+			}
+
+			// play move
+			if (MovePiece(startTile, move))
+			{
+				bCaptureFound = true;
+				printf("%s takes %s\n", ToBoard(startTile).c_str(), ToBoard(move).c_str());
+			}
+
+			// calc deeper moves with recursion and add
+			eval = -SearchAllCaptures();
+
+			if (eval >= bestEval)
+			{
+				bestEval = eval;
+			}
+
+			// undo move by restoring board state
+			RecoverBoardState(boardState.get());
+			if (currentTurn == PieceTeam::WHITE)
+			{
+				checkingPiecesBlack = checkingPieces;
+			}
+			else
+			{
+				checkingPiecesWhite = checkingPieces;
+			}
+
+			// restore attackMap, recovering from cache rather than calculating again
+			if (currentTurn == PieceTeam::WHITE)
+			{
+				std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapWhite));
+			}
+			else
+			{
+				std::copy(std::begin(attackMap), std::end(attackMap), std::begin(attackMapBlack));
+			}
+		}
+	}
+
+	if (!bCaptureFound)
+	{
+		return EvaluatePosition();
 	}
 
 	return bestEval;

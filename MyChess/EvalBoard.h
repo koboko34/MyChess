@@ -19,6 +19,7 @@ public:
 	void SetCurrentTurn(PieceTeam team) { currentTurn = team; }
 
 	int GetEval() const { return eval; }
+	bool IsSearching() const { return bSearching; }
 
 	void IterDeepSearch();
 
@@ -86,5 +87,6 @@ private:
 	virtual void HandleEval() override;
 	int EvaluatePosition() const;
 	int Search(const int ply, const int depth);
+	int SearchAllCaptures();
 };
 

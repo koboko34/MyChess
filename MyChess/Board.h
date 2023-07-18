@@ -244,7 +244,6 @@ protected:
 private:
 
 	GLFWwindow* window;
-
 	unsigned int width, height;
 
 	void SetupBoard(glm::mat4 view, glm::mat4 projection);
@@ -331,7 +330,7 @@ private:
 	void PlayMoveSound();
 	bool bSetPromoSound;
 
-	const int DEPTH = 5;
+	const int DEPTH = 1;
 
 	class EvalBoard* evalBoard;
 };
