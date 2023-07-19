@@ -86,7 +86,10 @@ private:
 
 	virtual void HandleEval() override;
 	int EvaluatePosition() const;
+
+	// Returns eval as experienced by currentTeam. For example, if black is up by 2 pawns and it is black's turn, the function will return 2.
+	// For normalised eval, multiply by 1 if currentTeam == WHITE and multiply by -1 if currentTeam == BLACK
 	int Search(const int ply, const int depth);
-	int SearchAllCaptures();
+	int SearchAllCaptures(bool bCaptureFound);
 };
 

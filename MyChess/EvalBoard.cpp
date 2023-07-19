@@ -223,7 +223,6 @@ int EvalBoard::EvaluatePosition() const
 {
 	int eval = CalcWhiteValue() - CalcBlackValue();
 	int perspective = currentTurn == PieceTeam::WHITE ? 1 : -1;
-
 	return eval * perspective;
 }
 
@@ -238,7 +237,7 @@ int EvalBoard::Search(const int ply, const int depth)
 
 	if (ply > depth)
 	{
-		return SearchAllCaptures();
+		return EvaluatePosition();
 	}
 
 	int bestEval = -999;
@@ -348,11 +347,16 @@ int EvalBoard::Search(const int ply, const int depth)
 	return bestEval;
 }
 
-int EvalBoard::SearchAllCaptures()
+int EvalBoard::SearchAllCaptures(bool bCaptureFound)
 {
+	if (!bCaptureFound)
+	{
+		return EvaluatePosition();
+	}
+	
 	int eval = 0;
 	int bestEval = -999;
-	bool bCaptureFound = false;
+	bCaptureFound = false;
 
 	// save current board state (locations, whether piece moved for castling etc)
 	std::unique_ptr<BoardState> boardState = std::make_unique<BoardState>(this);
@@ -406,7 +410,7 @@ int EvalBoard::SearchAllCaptures()
 			}
 
 			// calc deeper moves with recursion and add
-			eval = -SearchAllCaptures();
+			eval = -SearchAllCaptures(bCaptureFound);
 
 			if (eval >= bestEval)
 			{
@@ -438,7 +442,7 @@ int EvalBoard::SearchAllCaptures()
 
 	if (!bCaptureFound)
 	{
-		return EvaluatePosition();
+		return SearchAllCaptures(bCaptureFound);
 	}
 
 	return bestEval;
@@ -456,7 +460,7 @@ void EvalBoard::IterDeepSearch()
 	while (depth <= maxDepth && bShouldSearch)
 	{
 		printf("\nCalculating eval at depth %i...\n", depth);
-		int eval = Search(1, depth);
+		int eval = Search(1, depth) * (currentTurn == PieceTeam::WHITE ? 1 : -1);
 		if (bEarlyExit)
 		{
 			break;
