@@ -42,6 +42,7 @@ public:
 
 	bool IsActivePiece(int index) const { return pieces[index].GetTeam() != PieceTeam::NONE && pieces[index].GetType() != PieceType::NONE; }
 	bool IsChoosingPromotion() { return bChoosingPromotion; }
+	bool IsCompTurn() const { return bVsComputer && currentTurn == compTeam; }
 	bool IsGameOver() { return bGameOver; }
 	bool InMainMenu() { return bInMainMenu; }
 

@@ -2048,7 +2048,7 @@ void Board::PlayCompMove()
 
 	while (evalBoard->IsSearching())
 	{
-		std::this_thread::sleep_for(5ms);
+		std::this_thread::sleep_for(500ms);
 	}
 	
 	if (!MovePiece(evalBoard->bestMoveStart, evalBoard->bestMoveEnd))

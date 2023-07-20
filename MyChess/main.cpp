@@ -69,7 +69,10 @@ void HandleBoardClick(int& clickedObjectId)
 	}
 	else
 	{
-		board.MovePiece(clickedObjectId, pixel.objectId - 1);
+		if (!board.IsCompTurn())
+		{
+			board.MovePiece(clickedObjectId, pixel.objectId - 1);
+		}
 		clickedObjectId = -1;
 	}
 }
