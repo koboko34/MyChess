@@ -183,27 +183,9 @@ int EvalBoard::ShannonTest(const int ply, const int depth)
 	return moveCount;
 }
 
-void EvalBoard::RecoverPieceMovedState(const std::vector<PieceMovedState>& pieceMovedStates)
+void EvalBoard::SetMovedStates(const std::vector<PieceMovedState>& pieceMovedStates)
 {
-	for (PieceMovedState boardState : pieceMovedStates)
-	{
-		pieces[boardState.tile].bMoved = boardState.bMoved;
-	}
-}
-
-void EvalBoard::CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState)
-{
-	for (size_t i = 0; i < 64; i++)
-	{
-		if (!IsActivePiece(i))
-			continue;
-
-		if (pieces[i].GetType() == PAWN || pieces[i].GetType() == ROOK || pieces[i].GetType() == KING)
-		{
-			PieceMovedState state = PieceMovedState(i, pieces[i].bMoved);
-			pieceMovedState.push_back(state);
-		}
-	}
+	this->pieceMovedStates = pieceMovedStates;
 }
 
 void EvalBoard::RecoverBoardState(BoardState* boardState)
@@ -453,6 +435,7 @@ void EvalBoard::IterDeepSearch()
 	bShouldSearch = true;
 	bSearching = true;
 	SetupBoardFromFEN(fen);
+	RecoverPieceMovedState(pieceMovedStates);
 	CalculateMoves();
 	
 	bEarlyExit = false;

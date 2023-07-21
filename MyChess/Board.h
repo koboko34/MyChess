@@ -216,6 +216,21 @@ protected:
 
 	void ClearCheckingPieces();
 
+	struct PieceMovedState
+	{
+		PieceMovedState(int tile, bool bMoved)
+		{
+			this->tile = tile;
+			this->bMoved = bMoved;
+		}
+
+		int tile;
+		bool bMoved;
+	};
+
+	void CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedStates);
+	void RecoverPieceMovedState(const std::vector<PieceMovedState>& pieceMovedStates);
+
 	bool CheckStalemate();
 	void GameOver(PieceTeam winningTeam);
 	void ShowWinnerMessage();
@@ -331,7 +346,7 @@ private:
 	void PlayMoveSound();
 	bool bSetPromoSound;
 
-	const int DEPTH = 4;
+	const int DEPTH = 1;
 
 	class EvalBoard* evalBoard;
 };

@@ -2032,10 +2032,38 @@ void Board::SetupGame(bool bTest)
 	CalculateMoves();
 }
 
+void Board::CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedStates)
+{
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (!IsActivePiece(i))
+			continue;
+
+		if (pieces[i].GetType() == PAWN || pieces[i].GetType() == ROOK || pieces[i].GetType() == KING)
+		{
+			PieceMovedState state = PieceMovedState(i, pieces[i].bMoved);
+			pieceMovedStates.push_back(state);
+		}
+	}
+}
+
+void Board::RecoverPieceMovedState(const std::vector<PieceMovedState>& pieceMovedStates)
+{
+	for (const PieceMovedState& boardState : pieceMovedStates)
+	{
+		pieces[boardState.tile].bMoved = boardState.bMoved;
+	}
+}
+
 void Board::HandleEval()
 {
 	evalBoard->StopEval();
 	evalBoard->SetFEN(BoardToFEN());
+
+	std::vector<PieceMovedState> pieceMovedStates;
+	CapturePieceMovedState(pieceMovedStates);
+	evalBoard->SetMovedStates(pieceMovedStates);
+
 	evalBoard->StartEval(DEPTH);
 }
 
@@ -2351,8 +2379,12 @@ int Board::CalcBlackValue() const
 
 void Board::Promote(PieceType pieceType)
 {
-	printf("Promoting a piece...\n");
-
+#ifdef TESTING
+	if (!bTesting && !bSearching)
+	{
+		printf("Promoting a piece...\n");
+	}
+#endif
 	pieces[pieceToPromote].SetPiece(currentTurn, pieceType);
 	bChoosingPromotion = false;
 	CompleteTurn();

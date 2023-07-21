@@ -16,6 +16,7 @@ public:
 	void StopEval();
 
 	void SetFEN(std::string fen) { this->fen = fen; }
+	void SetMovedStates(const std::vector<PieceMovedState>& pieceMovedStates);
 	void SetCurrentTurn(PieceTeam team) { currentTurn = team; }
 
 	int GetEval() const { return eval; }
@@ -36,20 +37,7 @@ private:
 
 	std::string fen;
 
-	struct PieceMovedState
-	{
-		PieceMovedState(int tile, bool bMoved)
-		{
-			this->tile = tile;
-			this->bMoved = bMoved;
-		}
-
-		int tile;
-		bool bMoved;
-	};
-
-	void CapturePieceMovedState(std::vector<PieceMovedState>& pieceMovedState);
-	void RecoverPieceMovedState(const std::vector<PieceMovedState>& pieceMovedStates);
+	std::vector<PieceMovedState> pieceMovedStates;
 
 	struct BoardState
 	{
